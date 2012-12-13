@@ -30,6 +30,7 @@
 #define INTELLIDEMAND_MAJOR_VERSION    5
 #define INTELLIDEMAND_MINOR_VERSION    5
 
+
 /*
  * dbs is used in this file as a shortform for demandbased switching
  * It helps to keep variable names smaller, simpler
@@ -123,6 +124,7 @@ static unsigned int min_sampling_rate;
 #define POWERSAVE_BIAS_MINLEVEL			(-1000)
 
 static void do_dbs_timer(struct work_struct *work);
+
 
 /* Sampling types */
 enum {DBS_NORMAL_SAMPLE, DBS_SUB_SAMPLE};
@@ -381,6 +383,7 @@ static ssize_t show_powersave_bias
 
 static int two_phase_freq_array[NR_CPUS] = {[0 ... NR_CPUS-1] = 810000} ;
 
+
 static ssize_t show_two_phase_freq
 (struct kobject *kobj, struct attribute *attr, char *buf)
 {
@@ -422,6 +425,7 @@ static ssize_t store_sampling_rate(struct kobject *a, struct attribute *b,
 	unsigned int input;
 	int ret;
 
+
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
@@ -441,6 +445,7 @@ static ssize_t store_sync_freq(struct kobject *a, struct attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 	dbs_tuners_ins.sync_freq = input;
+
 
 	return count;
 }
@@ -469,6 +474,7 @@ static ssize_t store_optimal_freq(struct kobject *a, struct attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 	dbs_tuners_ins.optimal_freq = input;
+
 
 	return count;
 }
@@ -583,8 +589,8 @@ static ssize_t store_ignore_nice_load(struct kobject *a, struct attribute *b,
 		struct cpu_dbs_info_s *dbs_info;
 		dbs_info = &per_cpu(id_cpu_dbs_info, j);
 		dbs_info->prev_cpu_idle = get_cpu_idle_time(j,
-						&dbs_info->prev_cpu_wall,
-						dbs_tuners_ins.io_is_busy);
+										&dbs_info->prev_cpu_wall,
+										dbs_tuners_ins.io_is_busy);
 		if (dbs_tuners_ins.ignore_nice)
 			dbs_info->prev_cpu_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];
 
@@ -778,6 +784,7 @@ static ssize_t store_smart_slow_up_load(struct kobject *a, struct attribute *b,
 	}
 	dbs_tuners_ins.smart_slow_up_load = input;
 
+
 	return count;
 }
 
@@ -799,6 +806,7 @@ static ssize_t store_smart_slow_up_freq(struct kobject *a, struct attribute *b,
 		reset_hist_high(&hist_load_high[i]);
 	}
 	dbs_tuners_ins.smart_slow_up_freq = input;
+
 
 	return count;
 }
@@ -824,6 +832,7 @@ static ssize_t store_smart_slow_up_dur(struct kobject *a, struct attribute *b,
 		reset_hist_high(&hist_load_high[i]);
 	}
 	dbs_tuners_ins.smart_slow_up_dur = input;
+
 
 	return count;
 }
@@ -886,6 +895,7 @@ static ssize_t store_smart_each_off(struct kobject *a, struct attribute *b,
 	} else if (input < 0) {
 		input = 0;
 	}
+
 
 	/* buffer reset */
 	for_each_online_cpu(i) {
@@ -1170,6 +1180,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		if (cur_load > max_load)
 			max_load = cur_load;
 
+
 		j_dbs_info->max_load  = max(cur_load, j_dbs_info->prev_load);
 		j_dbs_info->prev_load = cur_load;
 		freq_avg = __cpufreq_driver_getavg(policy, j);
@@ -1202,6 +1213,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 	/* calculate the scaled load across CPU */
 	load_at_max_freq = (cur_load * policy->cur)/policy->max;
+
 
 	cpufreq_notify_utilization(policy, cur_load);
 
@@ -1449,6 +1461,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 			} else if (freq_next >= dbs_tuners_ins.smart_slow_up_freq) {
 				int idx = hist_load[core_j].hist_load_cnt;
 
+
 				if (idx >= dbs_tuners_ins.smart_slow_up_dur)
 					idx = 0;
 
@@ -1503,6 +1516,7 @@ static void do_dbs_timer(struct work_struct *work)
 
 	mutex_lock(&dbs_info->timer_mutex);
 
+
 	/* Common NORMAL_SAMPLE setup */
 	dbs_info->sample_type = DBS_NORMAL_SAMPLE;
 	if (!dbs_tuners_ins.powersave_bias ||
@@ -1524,6 +1538,7 @@ static void do_dbs_timer(struct work_struct *work)
 	queue_delayed_work_on(cpu, dbs_wq, &dbs_info->work, delay);
 	mutex_unlock(&dbs_info->timer_mutex);
 }
+
 
 static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 {
@@ -1688,6 +1703,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		mutex_unlock(&dbs_mutex);
 
 		break;
+
 
 	case CPUFREQ_GOV_LIMITS:
 		/* If device is being removed, skip set limits */

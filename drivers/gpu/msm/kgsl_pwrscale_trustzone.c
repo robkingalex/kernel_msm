@@ -210,7 +210,6 @@ static void tz_idle(struct kgsl_device *device, struct kgsl_pwrscale *pwrscale)
 					     pwr->active_pwrlevel + 1);
 	}
 
-clear:
 	priv->bin.total_time = 0;
 	priv->bin.busy_time = 0;
 	window_time = jiffies;

@@ -54,7 +54,10 @@
 
 static DEFINE_MUTEX(driver_lock);
 static DEFINE_SPINLOCK(l2_lock);
+
+#ifdef CONFIG_DEBUG_FS
 static int pvs_bin;
+#endif
 
 static struct drv_data {
 	struct acpu_level *acpu_freq_tbl;
@@ -1143,9 +1146,9 @@ static struct pvs_table * __init select_freq_plan(u32 pte_efuse_phys,
 	/* Select frequency tables. */
 	bin_idx = get_speed_bin(pte_efuse_val);
 	tbl_idx = get_pvs_bin(pte_efuse_val);
-
+#ifdef CONFIG_DEBUG_FS
 	pvs_bin = tbl_idx;
-
+#endif
 	return &pvs_tables[bin_idx][tbl_idx];
 }
 
@@ -1226,6 +1229,7 @@ static void __init hw_init(void)
 	bus_init(l2_level);
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int acpu_table_show(struct seq_file *m, void *unused)
 {
 	const struct acpu_level *level;
@@ -1283,6 +1287,7 @@ void __init acpuclk_krait_debug_init(void)
 	debugfs_create_file("acpu_table", S_IRUGO, base_dir, NULL,
 				&acpu_table_fops);
 }
+#endif
 
 int __init acpuclk_krait_init(struct device *dev,
 			      const struct acpuclk_krait_params *params)
@@ -1295,7 +1300,9 @@ int __init acpuclk_krait_init(struct device *dev,
 	acpuclk_register(&acpuclk_krait_data);
 	register_hotcpu_notifier(&acpuclk_cpu_notifier);
 
+#ifdef CONFIG_DEBUG_FS
 	acpuclk_krait_debug_init();
+#endif
 
 	return 0;
 }

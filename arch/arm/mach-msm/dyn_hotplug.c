@@ -48,6 +48,7 @@ struct dyn_hp_data {
 	struct early_suspend suspend;
 } *hp_data;
 
+/* Bring online each possible CPU up to max_online threshold */
 static inline void up_all(void)
 {
 	unsigned int cpu;
@@ -59,6 +60,7 @@ static inline void up_all(void)
 	hp_data->down_timer = 0;
 }
 
+/* Bring offline each possible CPU down to min_online threshold */
 static inline void down_all(void)
 {
 	unsigned int cpu;
@@ -74,6 +76,7 @@ static void hp_early_suspend(struct early_suspend *h)
 	return;
 }
 
+/* On late resume bring online all CPUs to prevent lags */
 static __cpuinit void hp_late_resume(struct early_suspend *h)
 {
 	pr_debug("%s: num_online_cpus: %u\n", __func__, num_online_cpus());
@@ -81,6 +84,7 @@ static __cpuinit void hp_late_resume(struct early_suspend *h)
 	up_all();
 }
 
+/* Iterate through possible CPUs and bring online the first found offline one */
 static inline void up_one(void)
 {
 	unsigned int cpu;
@@ -101,6 +105,7 @@ static inline void up_one(void)
 		}
 }
 
+/* Iterate through online CPUs and bring online the first one */
 static inline void down_one(void)
 {
 	unsigned int cpu;
@@ -120,6 +125,12 @@ static inline void down_one(void)
 		}
 }
 
+/*
+ * Every DELAY, check the average load of online CPUs. If the average load
+ * is above up_threshold bring online one more CPU if up_timer has expired.
+ * If the average load is below up_threshold offline one more CPU if the
+ * down_timer has expired.
+ */
 static __cpuinit void load_timer(struct work_struct *work)
 {
 	unsigned int cpu;
@@ -167,6 +178,8 @@ static void dyn_hp_disable(void)
 	up_all();
 	hp_data->enabled = 0;
 }
+
+/******************** Module parameters *********************/
 
 static __cpuinit int set_enabled(const char *val, const struct kernel_param *kp)
 {
@@ -268,6 +281,8 @@ static struct kernel_param_ops max_online_ops = {
 };
 
 module_param_cb(max_online, &max_online_ops, &max_online, 0644);
+
+/***************** end of module parameters *****************/
 
 static int __init dyn_hp_init(void)
 {

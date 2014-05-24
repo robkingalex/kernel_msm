@@ -371,9 +371,9 @@ KBUILD_CPPFLAGS := -D__KERNEL__
 #
 # LINARO OPT
 #
-CFLAGS_A15 = -mtune=cortex-a15 -marm -mfpu=neon-vfpv4 \
-				-fgcse-sm -fgcse-after-reload -fgcse-las -fsched-spec-load \
-				-ffast-math -munaligned-access -fsingle-precision-constant -fipa-pta
+CFLAGS_A15 = -mtune=cortex-a15 -marm -mfpu=neon-vfpv4 -fgcse-las \
+	     -fgcse-sm -fgcse-after-reload -fgcse-las -fsched-spec-load \
+	     -ffast-math -munaligned-access -fsingle-precision-constant -fipa-pta
 CFLAGS_MODULO = -fmodulo-sched -fmodulo-sched-allow-regmoves
 CFLAGS_NOERRORS = -Werror-implicit-function-declaration -Wno-format-security -Wno-format-security \
 					-Wno-maybe-uninitialized -Wno-sizeof-pointer-memaccess

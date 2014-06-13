@@ -209,7 +209,6 @@ static struct acpu_level tbl_faster[] __initdata = {
 #else
 static struct acpu_level tbl_slow[] __initdata = {
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),   950000 },
-	{ 1, {   405000, HFPLL, 2, 0x1E }, L2(5),   950000 },
 	{ 1, {   486000, HFPLL, 2, 0x24 }, L2(2),   975000 },
 	{ 1, {   594000, HFPLL, 1, 0x16 }, L2(4),  1000000 },
 	{ 1, {   702000, HFPLL, 1, 0x1A }, L2(6),  1025000 },
@@ -226,7 +225,6 @@ static struct acpu_level tbl_slow[] __initdata = {
 
 static struct acpu_level tbl_nom[] __initdata = {
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),   900000 },
-	{ 1, {   405000, HFPLL, 2, 0x1E }, L2(5),   900000 },
 	{ 1, {   486000, HFPLL, 2, 0x24 }, L2(2),   925000 },
 	{ 1, {   594000, HFPLL, 1, 0x16 }, L2(4),   950000 },
 	{ 1, {   702000, HFPLL, 1, 0x1A }, L2(6),   975000 },
@@ -243,7 +241,6 @@ static struct acpu_level tbl_nom[] __initdata = {
 
 static struct acpu_level tbl_fast[] __initdata = {
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),   850000 },
-	{ 1, {   405000, HFPLL, 2, 0x1E }, L2(5),   850000 },
 	{ 1, {   486000, HFPLL, 2, 0x24 }, L2(2),   875000 },
 	{ 1, {   594000, HFPLL, 1, 0x16 }, L2(4),   900000 },
 	{ 1, {   702000, HFPLL, 1, 0x1A }, L2(6),   925000 },
@@ -260,7 +257,6 @@ static struct acpu_level tbl_fast[] __initdata = {
 
 static struct acpu_level tbl_faster[] __initdata = {
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),   850000 },
-	{ 1, {   405000, HFPLL, 2, 0x1E }, L2(5),   850000 },
 	{ 1, {   486000, HFPLL, 2, 0x24 }, L2(2),   875000 },
 	{ 1, {   594000, HFPLL, 1, 0x16 }, L2(4),   900000 },
 	{ 1, {   702000, HFPLL, 1, 0x1A }, L2(6),   925000 },

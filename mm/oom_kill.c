@@ -102,7 +102,6 @@ static bool has_intersects_mems_allowed(struct task_struct *start,
 	struct task_struct *tsk;
 	bool ret = false;
 
-	rcu_read_lock();
 	for_each_thread(start, tsk) {
 		if (mask) {
 			/*
@@ -119,10 +118,7 @@ static bool has_intersects_mems_allowed(struct task_struct *start,
 			 */
 			ret = cpuset_mems_allowed_intersects(current, tsk);
 		}
-		if (ret)
-			break;
 	}
-	rcu_read_unlock();
 
 	return ret;
 }
@@ -144,17 +140,12 @@ struct task_struct *find_lock_task_mm(struct task_struct *p)
 {
 	struct task_struct *t;
 
-	rcu_read_lock();
-
 	for_each_thread(p, t) {
 		task_lock(t);
 		if (likely(t->mm))
 			goto found;
 		task_unlock(t);
 	}
-	t = NULL;
-found:
-	rcu_read_unlock();
 
 	return t;
 }
@@ -343,7 +334,6 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
 	struct task_struct *chosen = NULL;
 	unsigned long chosen_points = 0;
 
-	rcu_read_lock();
 	for_each_process_thread(g, p) {
 		unsigned int points;
 
@@ -368,12 +358,36 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
 		if (points == chosen_points && thread_group_leader(chosen))
 			continue;
 
-		chosen = p;
-		chosen_points = points;
+		if (p->flags & PF_EXITING) {
+			/*
+			 * If p is the current task and is in the process of
+			 * releasing memory, we allow the "kill" to set
+			 * TIF_MEMDIE, which will allow it to gain access to
+			 * memory reserves.  Otherwise, it may stall forever.
+			 *
+			 * The loop isn't broken here, however, in case other
+			 * threads are found to have already been oom killed.
+			 */
+			if (p == current) {
+				chosen = p;
+				*ppoints = 1000;
+			} else if (!force_kill) {
+				/*
+				 * If this task is not being ptraced on exit,
+				 * then wait for it to finish before killing
+				 * some other task unnecessarily.
+				 */
+				if (!(p->group_leader->ptrace & PT_TRACE_EXIT))
+					return ERR_PTR(-1UL);
+			}
+		}
+
+		points = oom_badness(p, memcg, nodemask, totalpages);
+		if (points > *ppoints) {
+			chosen = p;
+			*ppoints = points;
+		}
 	}
-	if (chosen)
-		get_task_struct(chosen);
-	rcu_read_unlock();
 
 	*ppoints = chosen_points * 1000 / totalpages;
 	return chosen;
@@ -480,7 +494,6 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	 * parent.  This attempts to lose the minimal amount of work done while
 	 * still freeing memory.
 	 */
-	read_lock(&tasklist_lock);
 	for_each_thread(p, t) {
 		list_for_each_entry(child, &t->children, sibling) {
 			unsigned int child_points;
@@ -500,7 +513,6 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 			}
 		}
 	}
-	read_unlock(&tasklist_lock);
 
 	p = find_lock_task_mm(victim);
 	if (!p) {

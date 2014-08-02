@@ -228,7 +228,7 @@ out:
  * link together 3 PAGE_SIZE sized pages to form a zspage
  * since then we can perfectly fit in 8 such objects.
  */
-static int get_zspage_order(int class_size)
+static int get_pages_per_zspage(int class_size)
 {
 	int i, max_usedpc = 0;
 	/* zspage order which gives maximum used size per KB */
@@ -400,7 +400,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
 static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 {
 	int i, error;
-	struct page *first_page = NULL;
+	struct page *first_page = NULL, *uninitialized_var(prev_page);
 
 	/*
 	 * Allocate individual pages and link them together as:
@@ -414,8 +414,8 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 	 * identify the last page.
 	 */
 	error = -ENOMEM;
-	for (i = 0; i < class->zspage_order; i++) {
-		struct page *page, *prev_page;
+	for (i = 0; i < class->pages_per_zspage; i++) {
+		struct page *page;
 
 		page = alloc_page(flags);
 		if (!page)
@@ -434,7 +434,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 			page->first_page = first_page;
 		if (i >= 2)
 			list_add(&page->lru, &prev_page->lru);
-		if (i == class->zspage_order - 1)	/* last page */
+		if (i == class->pages_per_zspage - 1)	/* last page */
 			SetPagePrivate2(page);
 		prev_page = page;
 	}
@@ -443,7 +443,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 
 	first_page->freelist = obj_location_to_handle(first_page, 0);
 	/* Maximum number of objects we can store in this zspage */
-	first_page->objects = class->zspage_order * PAGE_SIZE / class->size;
+	first_page->objects = class->pages_per_zspage * PAGE_SIZE / class->size;
 
 	error = 0; /* Success */
 
@@ -552,7 +552,7 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
 		class->size = size;
 		class->index = i;
 		spin_lock_init(&class->lock);
-		class->zspage_order = get_zspage_order(size);
+		class->pages_per_zspage = get_pages_per_zspage(size);
 
 	}
 
@@ -620,7 +620,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
 
 		set_zspage_mapping(first_page, class->index, ZS_EMPTY);
 		spin_lock(&class->lock);
-		class->pages_allocated += class->zspage_order;
+		class->pages_allocated += class->pages_per_zspage;
 	}
 
 	obj = (unsigned long)first_page->freelist;
@@ -675,7 +675,7 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
 	fullness = fix_fullness_group(pool, first_page);
 
 	if (fullness == ZS_EMPTY)
-		class->pages_allocated -= class->zspage_order;
+		class->pages_allocated -= class->pages_per_zspage;
 
 	spin_unlock(&class->lock);
 

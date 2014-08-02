@@ -223,8 +223,7 @@ SYSCALL_DEFINE1(fsync, unsigned int, fd)
 
 SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
 {
-#if 0
-	if (likely(dyn_fsync_active && !early_suspend_active))
+	if (!fsync_enabled)
 		return 0;
 	else
 #endif

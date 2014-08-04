@@ -2473,7 +2473,7 @@ config MSM_DCVS
 
 config MSM_HOTPLUG
 	bool "MSM hotplug driver"
-	depends on HOTPLUG_CPU
+	depends on HOTPLUG_CPU && FB_MSM_LCD_NOTIFY
 	default y
 	help
 	  The MSM hotplug driver controls on-/offlining of additional cores based

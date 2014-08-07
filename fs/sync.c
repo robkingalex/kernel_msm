@@ -279,8 +279,7 @@ SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
 #if 0
 	if (likely(dyn_fsync_active && !early_suspend_active))
 		return 0;
-	else
-#endif
+		
 	return do_fsync(fd, 1);
 }
 

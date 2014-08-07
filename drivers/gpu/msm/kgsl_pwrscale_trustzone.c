@@ -120,11 +120,10 @@ static ssize_t tz_governor_store(struct kgsl_device *device,
 
 	if (!strncmp(buf, "ondemand", 8))
 		priv->governor = TZ_GOVERNOR_ONDEMAND;
-    else if (!strncmp(str, "interactive", 11))
+        else if (!strncmp(buf, "interactive", 11))
 		priv->governor = TZ_GOVERNOR_INTERACTIVE;
-	else if (!strncmp(str, "performance", 11))
+	else if (!strncmp(buf, "performance", 11))
 		priv->governor = TZ_GOVERNOR_PERFORMANCE;
-
 	if (priv->governor == TZ_GOVERNOR_PERFORMANCE) {
 		kgsl_pwrctrl_pwrlevel_change(device, pwr->max_pwrlevel);
 		pwr->default_pwrlevel = pwr->max_pwrlevel;

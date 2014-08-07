@@ -1839,7 +1839,7 @@ if (num_online_cpus() > 1)
 delay -= jiffies % delay;
 
 dbs_info->sample_type = DBS_NORMAL_SAMPLE;
-INIT_DELAYED_WORK_DEFERRABLE(&dbs_info->work, do_dbs_timer);
+INIT_DEFERRABLE_WORK(&dbs_info->work, do_dbs_timer);
 queue_delayed_work_on(dbs_info->cpu, dbs_wq, &dbs_info->work, delay);
 }
 

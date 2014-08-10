@@ -1580,11 +1580,11 @@ config CPU_OVERCLOCK_ULTRA
         help
           Krait overclocking up to 1.9 GHz
 
-config CPU_VOLTAGE_TABLE
-	bool "Enable CPU Voltage Table via sysfs for adjustements"
-	default n
+config MSM_CPU_VOLTAGE_CONTROL
+	bool "Userspace CPU Voltage Control"
+	default y
 	help
-	  Krait User Votlage Control
+	  This enables userspace CPU Voltage Control
 
 config MSM_AVS_HW
 	bool "Enable Adaptive Voltage Scaling (AVS)"

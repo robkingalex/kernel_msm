@@ -252,6 +252,7 @@ on post-fs-data
 on charger
     # Enable Power modes and set the CPU Freq Sampling rates
 
+
 on property:init.svc.wpa_supplicant=stopped
     stop dhcpcd
 

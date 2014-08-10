@@ -1,6 +1,7 @@
 #!/system/bin/sh
 bb=busybox
 echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
+
 # Disable mpdecision & thermald
 	stop thermald
 	stop mpdecision
@@ -8,18 +9,31 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "[defcon] thermald & mpdecision disabled" | tee /dev/kmsg
 	echo "[defcon] Intelli-Thermal Enabled!" | tee /dev/kmsg
 
-	# Test's max temp to 65 before throttling kicks in
-	# echo "65" > /sys/module/msm_thermal/parameters/temp_threshold
-
 # MSM_Hotplug options
 	echo "1" > /sys/module/msm_hotplug/suspend_max_cpus
 	echo "1026000" > /sys/module/msm_hotplug/suspend_max_freq
 
 # Set default hotplug here:
-	echo 1 > /sys/module/autosmp/parameters/enabled
+	echo 0 > /sys/module/autosmp/parameters/enabled
 	echo 0 > /sys/module/msm_hotplug/msm_enabled
-	echo 0 > /sys/module/intelli_plug/parameters/intelli_plug_active
+	echo 1 > /sys/module/intelli_plug/parameters/intelli_plug_active
 	echo "[defcon] hotplug options set!" | tee /dev/kmsg
+
+# Intelliplug options
+# profile selections for nr_run_profile_sel
+# 0 balanced 4 cores (default)
+# 1 performance 4 cores
+# 2 conservative 4 cores
+# 3 eco performance 2 cores
+# 4 eco conservative 2 cores
+# runthreshold default is 722
+# hystersis choice 0 thru 16 default is 8
+	echo "0" > /sys/module/intelli_plug/parameters/nr_run_profile_sel
+	echo "722" > /sys/module/intelli_plug/parameters/cpu_nr_run_threshold
+	echo "702000" > /sys/module/intelli_plug/parameters/screen_off_max
+	echo "1" > /sys/module/intelli_plug/parameters/touch_boost_active
+	echo "8" > /sys/module/intelli_plug/parameters/nr_run_hysteresis
+	echo "[defcon] Intelliplug fully optimized!" | tee /dev/kmsg
 
 # Tweak AutoSMP Hotplug
 	echo "972000" > /sys/kernel/autosmp/conf/cpufreq_down
@@ -104,5 +118,6 @@ fi
 # GPU Max Clock
 	echo "400000000" > /sys/devices/platform/kgsl-3d0.0/kgsl/kgsl-3d0/max_gpuclk
 	echo "[defcon] GPU Max Clock Set" | tee /dev/kmsg
+
 
 

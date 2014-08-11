@@ -347,7 +347,6 @@ obj-$(CONFIG_ARCH_MSM9625) += gpiomux-v2.o gpiomux.o
 
 
 obj-$(CONFIG_MSM_SLEEP_STATS_DEVICE) += idle_stats_device.o
-obj-$(CONFIG_MSM_HOTPLUG) += msm_hotplug.o
 obj-$(CONFIG_ALUCARD_HOTPLUG) += alucard_hotplug.o
 obj-$(CONFIG_INTELLI_HOTPLUG) += intelli_plug.o
 obj-$(CONFIG_MSM_RUN_QUEUE_STATS) += msm_rq_stats.o

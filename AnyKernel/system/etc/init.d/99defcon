@@ -9,42 +9,29 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "[defcon] thermald & mpdecision disabled" | tee /dev/kmsg
 	echo "[defcon] Intelli-Thermal Enabled!" | tee /dev/kmsg
 
-# MSM_Hotplug options
-	echo "1" > /sys/module/msm_hotplug/suspend_max_cpus
-	echo "1026000" > /sys/module/msm_hotplug/suspend_max_freq
-
-# Set default hotplug here:
-	echo 0 > /sys/module/autosmp/parameters/enabled
-	echo 0 > /sys/module/msm_hotplug/msm_enabled
-	echo 1 > /sys/module/intelli_plug/parameters/intelli_plug_active
-	echo "[defcon] hotplug options set!" | tee /dev/kmsg
-
-# Intelliplug options
-# profile selections for nr_run_profile_sel
+# Neobuddy Intelliplug options
+# profile selections for full_mode_profile
 # 0 balanced 4 cores (default)
 # 1 performance 4 cores
-# 2 conservative 4 cores
-# 3 eco performance 2 cores
-# 4 eco conservative 2 cores
+# 2 conservative 4 cores saves battery
+# 3 disable
+# 4 Tri
+# 5 Eco
+# 6 Strict
 # runthreshold default is 722
 # hystersis choice 0 thru 16 default is 8
-	echo "0" > /sys/module/intelli_plug/parameters/nr_run_profile_sel
-	echo "722" > /sys/module/intelli_plug/parameters/cpu_nr_run_threshold
-	echo "702000" > /sys/module/intelli_plug/parameters/screen_off_max
-	echo "1" > /sys/module/intelli_plug/parameters/touch_boost_active
-	echo "8" > /sys/module/intelli_plug/parameters/nr_run_hysteresis
+# max_cpus_online <---
+# cpus_boosted = max cpus boosted
+# max_cpus_online_susp = max cpu's while suspended
+	echo "1" > /sys/kernel/intelli_plug/intelli_plug_active
+	echo "0" > /sys/kernel/intelli_plug/parameters/full_mode_profile
+	echo "4" > /sys/kernel/intelli_plug/max_cpus_online
+	echo "1" > /sys/kernel/intelli_plug/min_cpus_online
+	echo "3" > /sys/kernel/intelli_plug/cpus_boosted
+	echo "1" > /sys/kernel/intelli_plug/max_cpus_online_susp
+	echo "722" > /sys/kernel/intelli_plug/parameters/cpu_nr_run_threshold
+	echo "8" > /sys/kernel/intelli_plug/parameters/nr_run_hysteresis
 	echo "[defcon] Intelliplug fully optimized!" | tee /dev/kmsg
-
-# Tweak AutoSMP Hotplug
-	echo "972000" > /sys/kernel/autosmp/conf/cpufreq_down
-	echo "1242000" > /sys/kernel/autosmp/conf/cpufreq_up
-	echo 3 > /sys/kernel/autosmp/conf/cycle_down
-	echo 1 > /sys/kernel/autosmp/conf/cycle_up
-	echo 4 > /sys/kernel/autosmp/conf/max_cpus
-	echo 1 > /sys/kernel/autosmp/conf/min_cpus
-	echo "100" > /sys/kernel/autosmp/conf/delay
-	echo 1 > /sys/kernel/autosmp/conf/scroff_single_core
-	echo "[defcon] autosmp fully optimized!" | tee /dev/kmsg
 
 # Set TCP westwood
 	echo "westwood" > /proc/sys/net/ipv4/tcp_congestion_control

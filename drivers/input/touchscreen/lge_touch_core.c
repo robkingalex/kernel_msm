@@ -35,6 +35,8 @@
 
 #include <linux/input/lge_touch_core.h>
 
+#include <linux/input/sweep2wake.h>
+
 #ifdef CONFIG_TOUCH_WAKE
 #include <linux/touch_wake.h>
 #endif
@@ -2351,7 +2353,7 @@ static void touch_power_on(struct lge_touch_data *ts)
 	}
 
 #ifdef CONFIG_DOUBLETAP_WAKE
-	if (dt2w_enabled) {
+	if (dt2w_enabled || s2w_switch == 1) {
 		wake_unlock(&ts->dt_wake.wlock);
 		disable_irq_wake(ts->client->irq);
 
@@ -2401,12 +2403,13 @@ static void touch_power_off(struct lge_touch_data *ts)
 		return;
 	}
 #ifdef CONFIG_DOUBLETAP_WAKE
-	if (dt2w_enabled) {
+	if (dt2w_enabled || s2w_switch == 1) {
 		cancel_work_sync(&ts->work);
 		cancel_delayed_work_sync(&ts->work_init);
 		release_all_ts_event(ts);
 		ts->dt_wake.hits = 0;
 		ts->dt_wake.touch = 0;
+		sweep2wake_reset();
 		enable_irq_wake(ts->client->irq);
 	} else {
 #endif

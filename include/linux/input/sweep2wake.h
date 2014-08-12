@@ -22,11 +22,13 @@
 #define _LINUX_SWEEP2WAKE_H
 
 extern int s2w_switch;
+extern bool scr_suspended;
 
 extern int s2d_enabled;
 extern int down_kcal, up_kcal;
 extern void kcal_send_s2d(int set);
 
 extern void sweep2wake_pwrtrigger(void);
+extern void sweep2wake_reset(void);
 
 #endif	/* _LINUX_SWEEP2WAKE_H */

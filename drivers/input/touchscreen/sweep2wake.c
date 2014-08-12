@@ -30,11 +30,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/input.h>
-#ifndef CONFIG_HAS_EARLYSUSPEND
 #include <linux/lcd_notify.h>
-#else
-#include <linux/earlysuspend.h>
-#endif
 #include <linux/hrtimer.h>
 
 /* uncomment since no touchscreen defines android touch, do that here */
@@ -53,7 +49,6 @@ MODULE_LICENSE("GPLv2");
 
 /* Tuneables */
 #define S2W_DEBUG		0
-#define S2W_DEFAULT		0
 #define S2W_PWRKEY_DUR          60
 
 /* Mako aka Nexus 4 */
@@ -73,15 +68,14 @@ MODULE_LICENSE("GPLv2");
 #define S2W_X_B6		S2W_X_B0-225
 
 /* Resources */
-int s2w_switch = S2W_DEFAULT;
+int s2w_switch = 0;
+bool scr_suspended = false;
 static int touch_x = 0, touch_y = 0;
 static bool touch_x_called = false, touch_y_called = false;
-static bool scr_suspended = false, exec_count = true;
+static bool exec_count = true;
 static bool scr_on_touch = false, barrier[2] = {false, false};
 static bool r_barrier[2] = {false, false};
-#ifndef CONFIG_HAS_EARLYSUSPEND
 static struct notifier_block s2w_lcd_notif;
-#endif
 static struct input_dev * sweep2wake_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
 static struct workqueue_struct *s2w_input_wq;
@@ -296,19 +290,22 @@ static struct input_handler s2w_input_handler = {
 	.id_table	= s2w_ids,
 };
 
-static void s2w_early_suspend(struct early_suspend *h) {
-	scr_suspended = true;
-}
+static int lcd_notifier_callback(struct notifier_block *this,
+				unsigned long event, void *data)
+{
+	switch (event) {
+	case LCD_EVENT_ON_END:
+		scr_suspended = false;
+		break;
+	case LCD_EVENT_OFF_END:
+		scr_suspended = true;
+		break;
+	default:
+		break;
+	}
 
-static void s2w_late_resume(struct early_suspend *h) {
-	scr_suspended = false;
+	return 0;
 }
-
-static struct early_suspend s2w_early_suspend_handler = {
-	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN,
-	.suspend = s2w_early_suspend,
-	.resume = s2w_late_resume,
-};
 
 /*
  * SYSFS stuff below here
@@ -397,14 +394,10 @@ static int __init sweep2wake_init(void)
 	if (rc)
 		pr_err("%s: Failed to register s2w_input_handler\n", __func__);
 
-#ifndef CONFIG_HAS_EARLYSUSPEND
 	s2w_lcd_notif.notifier_call = lcd_notifier_callback;
 	if (lcd_register_client(&s2w_lcd_notif) != 0) {
 		pr_err("%s: Failed to register lcd callback\n", __func__);
 	}
-#else
-	register_early_suspend(&s2w_early_suspend_handler);
-#endif
 
 #ifndef ANDROID_TOUCH_DECLARED
 	android_touch_kobj = kobject_create_and_add("android_touch", NULL) ;

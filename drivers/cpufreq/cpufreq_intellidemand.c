@@ -41,15 +41,15 @@
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(3)
-#define MICRO_FREQUENCY_UP_THRESHOLD		(70)
+#define MICRO_FREQUENCY_UP_THRESHOLD		(90)
 #define MICRO_FREQUENCY_MIN_SAMPLE_RATE		(10000)
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 #define MIN_FREQUENCY_DOWN_DIFFERENTIAL		(1)
 
 #define DEF_FREQ_STEP				(25)
-#define DEF_STEP_UP_EARLY_HISPEED		(1958400)
-#define DEF_STEP_UP_INTERIM_HISPEED		(2265600)
+#define DEF_STEP_UP_EARLY_HISPEED		(1026000)
+#define DEF_STEP_UP_INTERIM_HISPEED		(1350000)
 #define DEF_SAMPLING_EARLY_HISPEED_FACTOR	(2)
 #define DEF_SAMPLING_INTERIM_HISPEED_FACTOR	(3)
 
@@ -80,8 +80,8 @@ static freq_table_idx pre_freq_idx[SUP_CORE_NUM] = {};
 
 #if defined(SMART_UP_SLOW_UP_AT_HIGH_FREQ)
 
-#define SUP_SLOW_UP_FREQUENCY			(1728000)
-#define SUP_HIGH_SLOW_UP_FREQUENCY		(2265600)
+#define SUP_SLOW_UP_FREQUENCY			(1350000)
+#define SUP_HIGH_SLOW_UP_FREQUENCY		(1512000)
 #define SUP_SLOW_UP_LOAD			(75)
 
 typedef struct {
@@ -209,8 +209,8 @@ static struct dbs_tuners {
 	.up_threshold_any_cpu_load = DEF_FREQUENCY_UP_THRESHOLD,
 	.ignore_nice = 0,
 	.powersave_bias = 0,
-	.sync_freq = 1728000,
-	.optimal_freq = 1574400,
+	.sync_freq = 1026000,
+	.optimal_freq = 702000,
 	/* 20130711 smart_up */
 	.smart_up = SMART_UP_PLUS,
 	.smart_slow_up_load = SUP_SLOW_UP_LOAD,
@@ -225,7 +225,7 @@ static struct dbs_tuners {
 	.step_up_interim_hispeed = DEF_STEP_UP_INTERIM_HISPEED,
 	.sampling_early_factor = DEF_SAMPLING_EARLY_HISPEED_FACTOR,
 	.sampling_interim_factor = DEF_SAMPLING_INTERIM_HISPEED_FACTOR,
-	.two_phase_freq = 0,
+	.two_phase_freq = 702000,
 	.io_is_busy = 0,
 	.sampling_rate = DEF_SAMPLING_RATE,
 };
@@ -379,7 +379,7 @@ static ssize_t show_powersave_bias
 	return snprintf(buf, PAGE_SIZE, "%d\n", dbs_tuners_ins.powersave_bias);
 }
 
-static int two_phase_freq_array[NR_CPUS] = {[0 ... NR_CPUS-1] = 1958400} ;
+static int two_phase_freq_array[NR_CPUS] = {[0 ... NR_CPUS-1] = 810000} ;
 
 static ssize_t show_two_phase_freq
 (struct kobject *kobj, struct attribute *attr, char *buf)
@@ -1534,7 +1534,7 @@ static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 		delay -= jiffies % delay;
 
 	dbs_info->sample_type = DBS_NORMAL_SAMPLE;
-	INIT_DELAYED_WORK_DEFERRABLE(&dbs_info->work, do_dbs_timer);
+	INIT_DEFERRABLE_WORK(&dbs_info->work, do_dbs_timer);
 	queue_delayed_work_on(dbs_info->cpu, dbs_wq, &dbs_info->work, delay);
 }
 

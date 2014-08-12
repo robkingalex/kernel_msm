@@ -62,14 +62,15 @@ MODULE_LICENSE("GPLv2");
 #define S2W_X_FINAL             300
 
 /* Right -> Left */
-#define S2W_X_B0		1200
-#define S2W_X_B1		S2W_X_B0-700
-#define S2W_X_B2		S2W_X_B0-200
+#define S2W_X_B0		250
+#define S2W_X_B1		S2W_X_B0+250
+#define S2W_X_B2		S2W_X_B0+750
 
 /* Left -> Right */
-#define S2W_X_B3		S2W_X_B0+120
+#define S2W_X_B3		S2W_X_B0+130
 #define S2W_X_B4		S2W_X_MAX-90
 #define S2W_X_B5		S2W_X_MAX-S2W_X_B0
+#define S2W_X_B6		S2W_X_B0-225
 
 /* Resources */
 int s2w_switch = S2W_DEFAULT;
@@ -170,8 +171,8 @@ static void detect_sweep2wake(int x, int y, bool st)
 		r_prevx = S2W_X_B0;
 		r_nextx = S2W_X_B3;
 		if ((r_barrier[0] == true) ||
-		   ((x > r_prevx) &&
-		    (x < r_nextx) &&
+		   ((x > S2W_X_B6) &&
+		    (x < r_prevx) &&
 		    (y > S2W_Y_LIMIT))) {
 			r_prevx = r_nextx;
 			r_nextx = S2W_X_B4;

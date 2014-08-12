@@ -125,7 +125,7 @@ static void detect_sweep2wake(int x, int y, bool st)
 	int r_prevx = 0, r_nextx = 0;
         bool single_touch = st;
 
-	if (s2w_switch && s2d_enabled)
+	if (s2w_switch == 2 && s2d_enabled)
 		s2d_enabled = 0;
 
 	if ((single_touch) && (scr_suspended == true) && (s2w_switch == 1)) {

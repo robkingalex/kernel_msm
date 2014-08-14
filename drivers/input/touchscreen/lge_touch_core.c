@@ -2433,18 +2433,24 @@ static int ts_notifier_callback(struct notifier_block *this,
 	struct lge_touch_data *ts = 
 			container_of(this, struct lge_touch_data, notif);
 
-	pr_info("%s: event = %lu\n", __func__, event);
-
 	switch (event) {
 	case LCD_EVENT_ON_START:
-		if (touchwake_is_enabled())
-			return 0; // touchwake has its own suspend routine
-		touch_power_on(ts);
+		if (touchwake_is_enabled()) {
+			touchwake_resume();
+			pr_info("%s: running resume for touchwake\n", __func__);
+		} else {
+			touch_power_on(ts);
+			pr_info("%s: running resume for coretouch\n", __func__);
+		}
 		break;
 	case LCD_EVENT_OFF_START:
-		if (touchwake_is_enabled())
-			return 0; // see above
-		touch_power_off(ts);
+		if (touchwake_is_enabled()) {
+			touchwake_suspend();
+			pr_info("%s: running suspend for touchwake\n", __func__);
+		} else {
+			touch_power_off(ts);
+			pr_info("%s: running suspend for coretouch\n", __func__);
+		}
 		break;
 	default:
 		break;

@@ -12,7 +12,7 @@ else
 	export ENABLE_GRAPHITE=true
 fi
 kernel="defcon"
-version="67u-unleashed"
+version="68u-unleashed"
 rom="L-Preview"
 variant="mako"
 ramdisk=ramdisk

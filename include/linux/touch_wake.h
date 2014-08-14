@@ -8,6 +8,9 @@
 extern void touchscreen_enable(void);
 extern void touchscreen_disable(void);
 
+extern void touchwake_suspend(void);
+extern void touchwake_resume(void);
+
 bool touchwake_is_enabled(void);
 void powerkey_pressed(void);
 void powerkey_released(void);

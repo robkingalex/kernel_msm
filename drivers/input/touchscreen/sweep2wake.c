@@ -70,6 +70,7 @@ MODULE_LICENSE("GPLv2");
 /* Resources */
 int s2w_switch = 0;
 bool scr_suspended = false;
+bool s2w_reported = false;
 static int touch_x = 0, touch_y = 0;
 static bool touch_x_called = false, touch_y_called = false;
 static bool exec_count = true;
@@ -91,6 +92,8 @@ module_param(up_kcal, int, 0644);
 static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
 	if (!mutex_trylock(&pwrkeyworklock))
                 return;
+	if (s2w_switch == 1)
+		s2w_reported = true;
 	input_event(sweep2wake_pwrdev, EV_KEY, KEY_POWER, 1);
 	input_event(sweep2wake_pwrdev, EV_SYN, 0, 0);
 	msleep(S2W_PWRKEY_DUR);
@@ -352,6 +355,7 @@ static int lcd_notifier_callback(struct notifier_block *this,
 	switch (event) {
 	case LCD_EVENT_ON_END:
 		scr_suspended = false;
+		s2w_reported = false;
 		break;
 	case LCD_EVENT_OFF_END:
 		scr_suspended = true;

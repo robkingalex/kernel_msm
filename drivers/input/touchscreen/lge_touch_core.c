@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/lcd_notify.h>
+#include <linux/earlysuspend.h>
 #include <linux/pm_runtime.h>
 #include <linux/jiffies.h>
 #include <linux/sysdev.h>
@@ -104,8 +104,10 @@ static struct pointer_trace tr_data[MAX_TRACE];
 static int tr_last_index;
 #endif
 
-static int ts_notifier_callback(struct notifier_block *this,
-								unsigned long event, void *data);
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+static void touch_early_suspend(struct early_suspend *h);
+static void touch_late_resume(struct early_suspend *h);
+#endif
 
 /* set_touch_handle / get_touch_handle
  *
@@ -2212,9 +2214,12 @@ static int touch_probe(struct i2c_client *client,
 
 	device_init_wakeup(&client->dev, 1);
 
-	ts->notif.notifier_call = ts_notifier_callback;
-	if ((ret = lcd_register_client(&ts->notif)))
-		TOUCH_ERR_MSG("Unable to register lcd_notifier: %d\n", ret);
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+	ts->early_suspend.suspend = touch_early_suspend;
+	ts->early_suspend.resume = touch_late_resume;
+	register_early_suspend(&ts->early_suspend);
+#endif
 
 #ifdef CONFIG_TOUCH_WAKE
 	touchwake_data = ts;
@@ -2268,7 +2273,7 @@ err_lge_touch_sysfs_init_and_add:
 err_lge_touch_sys_dev_register:
 	sysdev_class_unregister(&lge_touch_sys_class);
 err_lge_touch_sys_class_register:
-	lcd_unregister_client(&ts->notif);
+	unregister_early_suspend(&ts->early_suspend);
 	if (ts->pdata->role->operation_mode == INTERRUPT_MODE) {
 		gpio_free(ts->pdata->int_pin);
 		free_irq(ts->client->irq, ts);
@@ -2318,8 +2323,7 @@ static int touch_remove(struct i2c_client *client)
 	sysdev_unregister(&lge_touch_sys_device);
 	sysdev_class_unregister(&lge_touch_sys_class);
 
-	if (lcd_unregister_client(&ts->notif))
-		TOUCH_ERR_MSG("Error occurred while unregistering lcd_notifier.\n");
+	unregister_early_suspend(&ts->early_suspend);
 
 	if (ts->pdata->role->operation_mode == INTERRUPT_MODE) {
 		gpio_free(ts->pdata->int_pin);
@@ -2427,31 +2431,33 @@ static void touch_power_off(struct lge_touch_data *ts)
 #endif
 }
 
-static int ts_notifier_callback(struct notifier_block *this,
-								unsigned long event, void *data)
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+static void touch_early_suspend(struct early_suspend *h)
 {
-	struct lge_touch_data *ts = 
-			container_of(this, struct lge_touch_data, notif);
+	struct lge_touch_data *ts =
+			container_of(h, struct lge_touch_data, early_suspend);
 
-	pr_info("%s: event = %lu\n", __func__, event);
-
-	switch (event) {
-	case LCD_EVENT_ON_START:
-		if (touchwake_is_enabled())
-			return 0; // touchwake has its own suspend routine
-		touch_power_on(ts);
-		break;
-	case LCD_EVENT_OFF_START:
-		if (touchwake_is_enabled())
-			return 0; // see above
-		touch_power_off(ts);
-		break;
-	default:
-		break;
-	}
-
-	return 0;
+#ifdef CONFIG_TOUCH_WAKE
+	if (touchwake_is_enabled())
+		return;	/* touchwake will handle touchscreen suspend call */
+#endif
+	/* touchwake is not compiled or it's disabled - handle suspend */
+	touch_power_off(ts);
 }
+
+static void touch_late_resume(struct early_suspend *h)
+{
+	struct lge_touch_data *ts =
+			container_of(h, struct lge_touch_data, early_suspend);
+
+#ifdef CONFIG_TOUCH_WAKE
+	if (touchwake_is_enabled())
+		return;
+#endif
+	/* touchwake is not compiled or it's disabled - handle wake */
+	touch_power_on(ts);
+}
+#endif
 
 #ifdef CONFIG_TOUCH_WAKE
 void touchscreen_disable(void)

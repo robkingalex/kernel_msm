@@ -13,6 +13,7 @@
 #include <linux/miscdevice.h>
 #include <linux/touch_wake.h>
 #include <linux/workqueue.h>
+#include <linux/earlysuspend.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/wakelock.h>
@@ -71,7 +72,7 @@ bool touchwake_is_enabled(void)
 }
 EXPORT_SYMBOL(touchwake_is_enabled);
 
-void touchwake_suspend(void)
+static void touchwake_early_suspend(struct early_suspend *h)
 {
 	if (!touchwake_enabled)
 		goto out;
@@ -88,7 +89,7 @@ out:
 	device_suspended = true;
 }
 
-void touchwake_resume(void)
+static void touchwake_late_resume(struct early_suspend *h)
 {
 	if (!touchwake_enabled)
 		goto out;
@@ -107,6 +108,12 @@ void touchwake_resume(void)
 out:
 	device_suspended = false;
 }
+
+static struct early_suspend touchwake_suspend_data = {
+	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN,
+	.suspend = touchwake_early_suspend,
+	.resume = touchwake_late_resume,
+};
 
 static void touchwake_touchoff(struct work_struct *touchoff_work)
 {
@@ -306,6 +313,8 @@ static int __init touchwake_control_init(void)
 							touchwake_device.name);
 		return 1;
 	}
+
+	register_early_suspend(&touchwake_suspend_data);
 
 	wake_lock_init(&touchwake_wake_lock, WAKE_LOCK_SUSPEND,
 							"touchwake_wake");

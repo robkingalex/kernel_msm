@@ -155,7 +155,7 @@ static struct dbs_tuners {
 	.ignore_nice = 0,
 	.powersave_bias = 0,
 	.freq_boost_time = DEFAULT_FREQ_BOOST_TIME,
-	.boostfreq = 2265600,
+	.boostfreq = 1458000,
 	.freq_step = FREQ_STEP,
 	.freq_responsiveness = FREQ_FOR_RESPONSIVENESS
 };

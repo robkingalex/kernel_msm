@@ -49,7 +49,7 @@
 #define DEFAULT_FREQ_BOOST_TIME			(500000)
 #define MAX_FREQ_BOOST_TIME			(5000000)
 #define UP_THRESHOLD_AT_MIN_FREQ		(40)
-#define FREQ_FOR_RESPONSIVENESS			(2265600)
+#define FREQ_FOR_RESPONSIVENESS			(1350000)
 
 static u64 hyper_freq_boosted_time;
 
@@ -640,11 +640,11 @@ static ssize_t store_freq_responsiveness(struct kobject *a, struct attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 
-	if (input > 2496000)
-		input = 2496000;
+	if (input > 1512000)
+		input = 1512000;
 
-	if (input < 300000)
-		input = 300000;
+	if (input < 100000)
+		input = 100000;
 
 	dbs_tuners_ins.freq_responsiveness = input;
 

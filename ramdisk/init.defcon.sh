@@ -21,7 +21,6 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 # runthreshold default is 722
 # hystersis choice 0 thru 16 default is 8
 # max_cpus_online <---
-# min_cpus_online <---
 # cpus_boosted = max cpus boosted
 # max_cpus_online_susp = max cpu's while suspended
 	echo "1" > /sys/kernel/intelli_plug/intelli_plug_active
@@ -39,16 +38,15 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "[defcon] TCP set: westwood" | tee /dev/kmsg
 
 # Set IntelliActive as default:	
-	echo "intelliactive" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-	echo "intelliactive" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
-	echo "intelliactive" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor
-	echo "intelliactive" > /sys/devices/system/cpu/cpu3/cpufreq/scaling_governor
-	echo "81000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-	echo "81000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-	echo "81000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-	echo "81000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-	echo 0 > /sys/devices/system/cpu/cpufreq/intelliactive/boost
-	echo "[defcon] Intelli-Active Enabled with BOOST!" | tee /dev/kmsg
+	echo "HYPER" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+	echo "HYPER" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
+	echo "HYPER" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor
+	echo "HYPER" > /sys/devices/system/cpu/cpu3/cpufreq/scaling_governor
+	echo "384000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
+	echo "384000" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq
+	echo "384000" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_min_freq
+	echo "384000" > /sys/devices/system/cpu/cpu3/cpufreq/scaling_min_freq
+	echo "[defcon] HYPER CPU Governor activated" | tee /dev/kmsg
 
 # Set Power Save Settings
 	echo 1 > /sys/module/pm_8x60/modes/cpu0/wfi/suspend_enabled
@@ -106,5 +104,3 @@ fi
 # GPU Max Clock
 	echo "400000000" > /sys/devices/platform/kgsl-3d0.0/kgsl/kgsl-3d0/max_gpuclk
 	echo "[defcon] GPU Max Clock Set" | tee /dev/kmsg
-
-

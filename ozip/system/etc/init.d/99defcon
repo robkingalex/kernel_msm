@@ -38,16 +38,15 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "[defcon] TCP set: westwood" | tee /dev/kmsg
 
 # Set IntelliActive as default:	
-	echo "intelliactive" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-	echo "intelliactive" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
-	echo "intelliactive" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor
-	echo "intelliactive" > /sys/devices/system/cpu/cpu3/cpufreq/scaling_governor
-	echo "81000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-	echo "81000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-	echo "81000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-	echo "81000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-	echo 0 > /sys/devices/system/cpu/cpufreq/intelliactive/boost
-	echo "[defcon] Intelli-Active Enabled with BOOST!" | tee /dev/kmsg
+	echo "HYPER" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+	echo "HYPER" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
+	echo "HYPER" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor
+	echo "HYPER" > /sys/devices/system/cpu/cpu3/cpufreq/scaling_governor
+	echo "384000" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
+	echo "384000" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq
+	echo "384000" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_min_freq
+	echo "384000" > /sys/devices/system/cpu/cpu3/cpufreq/scaling_min_freq
+	echo "[defcon] HYPER CPU Governor activated" | tee /dev/kmsg
 
 # Set Power Save Settings
 	echo 1 > /sys/module/pm_8x60/modes/cpu0/wfi/suspend_enabled

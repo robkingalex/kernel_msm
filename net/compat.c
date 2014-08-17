@@ -94,10 +94,8 @@ int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *kern_iov,
 				return err;
 		}
 		kern_msg->msg_name = kern_address;
-	} else {
+	} else
 		kern_msg->msg_name = NULL;
-		kern_msg->msg_namelen = 0;
-	}
 
 	tot_len = iov_from_user_compat_to_kern(kern_iov,
 					  (struct compat_iovec __user *)kern_msg->msg_iov,

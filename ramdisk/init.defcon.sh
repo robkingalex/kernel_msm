@@ -104,3 +104,11 @@ fi
 # GPU Max Clock
 	echo "400000000" > /sys/devices/platform/kgsl-3d0.0/kgsl/kgsl-3d0/max_gpuclk
 	echo "[defcon] GPU Max Clock Set" | tee /dev/kmsg
+
+# disable debugging on some modules
+	echo "0" > /sys/module/kernel/parameters/initcall_debug;
+	echo "0" > /sys/module/alarm/parameters/debug_mask;
+	echo "0" > /sys/module/alarm_dev/parameters/debug_mask;
+	echo "0" > /sys/module/binder/parameters/debug_mask;
+	echo "0" > /sys/module/xt_qtaguid/parameters/debug_mask;
+

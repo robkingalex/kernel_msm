@@ -294,6 +294,10 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	struct sysinfo si;
 #endif
 
+#ifdef CONFIG_ZRAM_FOR_ANDROID
+	other_file -= total_swapcache_pages;
+#endif
+
 	if (nr_to_scan > 0) {
 		if (mutex_lock_interruptible(&scan_mutex) < 0)
 			return 0;
@@ -304,7 +308,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	other_free = global_page_state(NR_FREE_PAGES);
 	other_file = global_page_state(NR_FILE_PAGES) -
 						global_page_state(NR_SHMEM) +
-						(si.freeswap >> 1) -
+						(si.totalswap >> 2) -
 						total_swapcache_pages;
 #else
 	other_free = global_page_state(NR_FREE_PAGES);

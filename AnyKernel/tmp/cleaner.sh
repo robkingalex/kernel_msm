@@ -1,5 +1,9 @@
 #!/sbin/sh
 
+# delete mpdecision & thermald because it is no longer needed
+rm -rf /system/bin/thermald
+rm -rf /system/bin/mpdecision
+
 # clean init.d scripts
 INITD_DIR=/system/etc/init.d
 # Trinity

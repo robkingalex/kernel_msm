@@ -23,7 +23,6 @@
 
 extern int s2w_switch;
 extern bool scr_suspended;
-extern bool s2w_reported;
 
 extern int s2d_enabled;
 extern int down_kcal, up_kcal;

@@ -1013,7 +1013,7 @@ static void touch_work_func(struct work_struct *work)
 
 #ifdef CONFIG_TOUCH_WAKE
 	if (unlikely(!suspending && device_is_suspended()) &&
-				touchwake_is_enabled() && !s2w_reported) {
+					touchwake_is_enabled()) {
 		touch_press();
 		goto out;
 	}

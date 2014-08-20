@@ -111,8 +111,10 @@ static int lowmem_minfree[6] = {
 	2 * 1024,	/* 8MB */
 	4 * 1024,	/* 16MB */
 	16 * 1024,	/* 64MB */
+	28 * 1024,	/* 112MB */
+	32 * 1024,	/* 131MB */
 };
-static int lowmem_minfree_size = 4;
+static int lowmem_minfree_size = 6;
 static int lmk_fast_run = 1;
 
 static unsigned long lowmem_deathpending_timeout;
@@ -125,15 +127,16 @@ static unsigned long lowmem_deathpending_timeout;
 
 static bool avoid_to_kill(uid_t uid)
 {
-	if (uid == 0 ||		/* root */
-		uid == 1001 ||	/* radio */
-		uid == 1002 ||	/* bluetooth */
-		uid == 1010 ||	/* wifi */
-		uid == 1012 ||	/* install */
-		uid == 1013 ||	/* media */
-		uid == 1014 ||	/* dhcp */
-		uid == 1017 ||	/* keystore */
-		uid == 1019)	/* drm */
+	/* 
+	 * uid info
+	 * uid == 0 > root
+	 * uid == 1001 > radio
+	 * uid == 1002 > bluetooth
+	 * uid == 1010 > wifi
+	 * uid == 1014 > dhcp
+	 */
+	if (uid == 0 || uid == 1001 || uid == 1002 || uid == 1010 ||
+			uid == 1014)
 		return 1;
 	return 0;
 }
@@ -141,10 +144,9 @@ static bool avoid_to_kill(uid_t uid)
 static bool protected_apps(char *comm)
 {
 	if (strcmp(comm, "d.process.acore") == 0 ||
-		strcmp(comm, "ndroid.systemui") == 0 ||
-		strcmp(comm, "ndroid.contacts") == 0 ||
-		strcmp(comm, "system:ui") == 0 ||
-		strcmp(comm, "d.process.media") == 0)
+			strcmp(comm, "ndroid.systemui") == 0 ||
+			strcmp(comm, "ndroid.contacts") == 0 ||
+			strcmp(comm, "system:ui") == 0)
 		return 1;
 	return 0;
 }
@@ -427,7 +429,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		pcred = __task_cred(p);
 		uid = pcred->uid;
 		if ((!avoid_to_kill(uid) && !protected_apps(p->comm)) ||
-				tasksize * (long)(PAGE_SIZE / 1024) >= 80000) {
+				tasksize * (long)(PAGE_SIZE / 1024) >= 100000) {
 			selected = p;
 			selected_tasksize = tasksize;
 			selected_oom_score_adj = oom_score_adj;
@@ -666,7 +668,6 @@ error_create_rtcc_daemon_class_file:
 error_create_kcompcache_class:
 	class_destroy(kcompcache_class);
 #endif
-
 	return 0;
 }
 

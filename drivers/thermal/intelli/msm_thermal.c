@@ -70,7 +70,7 @@ static int limit_idx;
  * min limit is set to 1267200!
  * check your FREQ Table and set corect freq number.
  */
-static int limit_idx_low = 8;
+static int limit_idx_low = 5;
 
 static int limit_idx_high;
 static int throttled;

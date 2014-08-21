@@ -1584,11 +1584,6 @@ config CPU_OVERCLOCK
 	help
 	  Krait overclocking up to 1.7 GHz
 
-config CPU_OVERCLOCK_ULTRA
-        bool "Enable CPU Overclocking option"
-        default n
-        help
-          Krait overclocking up to 1.9 GHz
 
 config MSM_CPU_VOLTAGE_CONTROL
 	bool "Userspace CPU Voltage Control"

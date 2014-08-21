@@ -31,7 +31,6 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/kernel_stat.h>
-#include <asm/cputime.h>
 #include <linux/input.h>
 
 static int active_count;
@@ -68,11 +67,11 @@ static struct mutex gov_lock;
 static unsigned int hispeed_freq = 1026000;
 
 /* Go to hi speed when CPU load at or above this value. */
-#define DEFAULT_GO_HISPEED_LOAD 99
+#define DEFAULT_GO_HISPEED_LOAD 90
 static unsigned long go_hispeed_load = DEFAULT_GO_HISPEED_LOAD;
 
 /* Sampling down factor to be applied to min_sample_time at max freq */
-static unsigned int sampling_down_factor;
+static unsigned int sampling_down_factor = 100000;
 
 /* Target load.  Lower values result in higher CPU speeds. */
 #define DEFAULT_TARGET_LOAD 90
@@ -84,13 +83,13 @@ static int ntarget_loads = ARRAY_SIZE(default_target_loads);
 /*
  * The minimum amount of time to spend at a frequency before we can ramp down.
  */
-#define DEFAULT_MIN_SAMPLE_TIME (80 * USEC_PER_MSEC)
+#define DEFAULT_MIN_SAMPLE_TIME 40000
 static unsigned long min_sample_time = DEFAULT_MIN_SAMPLE_TIME;
 
 /*
  * The sample rate of the timer used to increase frequency
  */
-#define DEFAULT_TIMER_RATE (20 * USEC_PER_MSEC)
+#define DEFAULT_TIMER_RATE 30000
 static unsigned long timer_rate = DEFAULT_TIMER_RATE;
 
 /* Busy SDF parameters*/
@@ -129,7 +128,7 @@ static bool io_is_busy = 1;
  * up_threshold_any_cpu_freq then do not let the frequency to drop below
  * sync_freq
  */
-static unsigned int up_threshold_any_cpu_load = 90;
+static unsigned int up_threshold_any_cpu_load = 70;
 static unsigned int sync_freq = 1026000;
 static unsigned int up_threshold_any_cpu_freq = 1242000;
 
@@ -395,7 +394,6 @@ static void cpufreq_interactive_timer(unsigned long data)
 	pcpu->prev_load = cpu_load;
 	boosted = boost_val || now < boostpulse_endtime;
 
-	// HACK HACK HACK BEGIN
 	if (counter < 5) {
 		counter++;
 		if (counter > 2) {
@@ -436,7 +434,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 					continue;
 
 				max_load = max(max_load, picpu->prev_load);
-				max_freq = max(max_freq, picpu->policy->cur);
+				max_freq = max(max_freq, picpu->target_freq);
 			}
 
 			if (max_freq > up_threshold_any_cpu_freq ||
@@ -1328,9 +1326,6 @@ static int cpufreq_governor_intelliactive(struct cpufreq_policy *policy,
 
 	switch (event) {
 	case CPUFREQ_GOV_START:
-		if (!cpu_online(policy->cpu))
-			return -EINVAL;
-
 		mutex_lock(&gov_lock);
 
 		freq_table =
@@ -1349,6 +1344,8 @@ static int cpufreq_governor_intelliactive(struct cpufreq_policy *policy,
 			pcpu->hispeed_validate_time =
 				pcpu->floor_validate_time;
 			down_write(&pcpu->enable_sem);
+			del_timer_sync(&pcpu->cpu_timer);
+			del_timer_sync(&pcpu->cpu_slack_timer);
 			cpufreq_interactive_timer_start(j);
 			pcpu->governor_enabled = 1;
 			up_write(&pcpu->enable_sem);
@@ -1362,6 +1359,10 @@ static int cpufreq_governor_intelliactive(struct cpufreq_policy *policy,
 			mutex_unlock(&gov_lock);
 			return 0;
 		}
+
+		if (!policy->cpu)
+			rc = input_register_handler
+				(&interactive_input_handler);
 
 		rc = sysfs_create_group(cpufreq_global_kobject,
 				&interactive_attr_group);
@@ -1382,12 +1383,15 @@ static int cpufreq_governor_intelliactive(struct cpufreq_policy *policy,
 			pcpu = &per_cpu(cpuinfo, j);
 			down_write(&pcpu->enable_sem);
 			pcpu->governor_enabled = 0;
+			pcpu->target_freq = 0;
 			del_timer_sync(&pcpu->cpu_timer);
 			del_timer_sync(&pcpu->cpu_slack_timer);
 			up_write(&pcpu->enable_sem);
 		}
 
 		if (--active_count > 0) {
+			if (!policy->cpu)
+				input_unregister_handler(&interactive_input_handler);
 			mutex_unlock(&gov_lock);
 			return 0;
 		}
@@ -1446,7 +1450,7 @@ static void cpufreq_interactive_nop_timer(unsigned long data)
 
 static int __init cpufreq_intelliactive_init(void)
 {
-	unsigned int i, rc;
+	unsigned int i;
 	struct cpufreq_interactive_cpuinfo *pcpu;
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
 
@@ -1460,8 +1464,6 @@ static int __init cpufreq_intelliactive_init(void)
 		pcpu->cpu_slack_timer.function = cpufreq_interactive_nop_timer;
 		spin_lock_init(&pcpu->load_lock);
 		init_rwsem(&pcpu->enable_sem);
-		if (!i)
-			rc = input_register_handler(&interactive_input_handler);
 	}
 
 	spin_lock_init(&target_loads_lock);
@@ -1491,13 +1493,7 @@ module_init(cpufreq_intelliactive_init);
 
 static void __exit cpufreq_interactive_exit(void)
 {
-	unsigned int cpu;
-
 	cpufreq_unregister_governor(&cpufreq_gov_intelliactive);
-	for_each_possible_cpu(cpu) {
-		if(!cpu)
-			input_unregister_handler(&interactive_input_handler);
-	}
 	kthread_stop(speedchange_task);
 	put_task_struct(speedchange_task);
 }
@@ -1509,4 +1505,3 @@ MODULE_AUTHOR("Paul Reioux <reioux@gmail.com>");
 MODULE_DESCRIPTION("'cpufreq_intelliactive' - A cpufreq governor for "
 	"Latency sensitive workloads based on Google's Interactive");
 MODULE_LICENSE("GPL");
-

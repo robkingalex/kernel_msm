@@ -12,8 +12,8 @@ else
 	export ENABLE_GRAPHITE=true
 fi
 kernel="defcon"
-version="76u-b1-unleashed"
-rom="L-Preview"
+version="76u-b2-unleashed"
+rom="AOSP"
 variant="mako"
 ramdisk=ramdisk
 #ramdisk=/home/defcon/Desktop/newboot/ramdisk

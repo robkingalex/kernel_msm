@@ -138,7 +138,7 @@ static bool avoid_to_kill(uid_t uid)
 	 * uid == 1014 > dhcp
 	 */
 	if (uid == 0 || uid == 1001 || uid == 1002 || uid == 1010 ||
-			uid == 1014)
+			uid == 1000 || uid == 1014)
 		return 1;
 	return 0;
 }

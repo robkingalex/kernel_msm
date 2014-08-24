@@ -12,7 +12,7 @@ else
 	export ENABLE_GRAPHITE=true
 fi
 kernel="defcon"
-version="77u-r3-unleashed"
+version="77u-r4-unleashed"
 rom="CM11"
 variant="mako"
 ramdisk=ramdisk

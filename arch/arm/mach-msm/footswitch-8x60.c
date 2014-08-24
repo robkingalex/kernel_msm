@@ -52,9 +52,9 @@
 
 #define GFS_DELAY_CNT		31
 
-#define DEFAULT_RESET_DELAY_US	10
+#define DEFAULT_RESET_DELAY_US	1
 /* Clock rate to use if one has not previously been set. */
-#define DEFAULT_RATE		1800000
+#define DEFAULT_RATE		27000000
 #define MAX_CLKS		10
 
 /*

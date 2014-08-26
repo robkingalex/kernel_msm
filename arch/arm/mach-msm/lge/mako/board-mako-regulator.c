@@ -501,9 +501,9 @@ struct regulator_init_data msm8064_saw_regulator_pdata_8921_s6 =
 
 struct regulator_init_data msm8064_saw_regulator_pdata_8821_s0 =
 	/*	      ID       vreg_name	min_uV  max_uV */
-	SAW_VREG_INIT(8821_S0, "8821_s0",      600000, 1450000);
+	SAW_VREG_INIT(8821_S0, "8821_s0",       600000, 1450000);
 struct regulator_init_data msm8064_saw_regulator_pdata_8821_s1 =
-	SAW_VREG_INIT(8821_S1, "8821_s1",      600000, 1450000);
+	SAW_VREG_INIT(8821_S1, "8821_s1",       600000, 1450000);
 
 /* PM8921 regulator constraints */
 struct pm8xxx_regulator_platform_data

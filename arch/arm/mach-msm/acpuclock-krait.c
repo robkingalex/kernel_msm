@@ -23,6 +23,7 @@
 #include <linux/cpu.h>
 #include <linux/regulator/consumer.h>
 #include <linux/iopoll.h>
+#include <linux/debugfs.h>
 
 #include <asm/mach-types.h>
 #include <asm/cpu.h>
@@ -53,6 +54,7 @@
 
 static DEFINE_MUTEX(driver_lock);
 static DEFINE_SPINLOCK(l2_lock);
+static int pvs_bin;
 
 static struct drv_data {
 	struct acpu_level *acpu_freq_tbl;
@@ -465,10 +467,18 @@ static inline int calculate_vdd_dig(const struct acpu_level *tgt)
 
 static bool enable_boost = true;
 module_param_named(boost, enable_boost, bool, S_IRUGO | S_IWUSR);
+static unsigned int lower_uV;
+module_param(lower_uV, uint, S_IRUGO | S_IWUSR);
+static unsigned int upper_uV;
+module_param(upper_uV, uint, S_IRUGO | S_IWUSR);
+static unsigned long upper_khz_thres = 1350000;
+module_param(upper_khz_thres, ulong, S_IRUGO | S_IWUSR);
 
 static inline int calculate_vdd_core(const struct acpu_level *tgt)
 {
-	return tgt->vdd_core + (enable_boost ? drv.boost_uv : 0);
+	unsigned int under_uV = (tgt->speed.khz >= upper_khz_thres) ? upper_uV
+								    : lower_uV;
+	return tgt->vdd_core + (enable_boost ? drv.boost_uv : 0) - under_uV;
 }
 
 static DEFINE_MUTEX(l2_regulator_lock);
@@ -1134,6 +1144,8 @@ static struct pvs_table * __init select_freq_plan(u32 pte_efuse_phys,
 	bin_idx = get_speed_bin(pte_efuse_val);
 	tbl_idx = get_pvs_bin(pte_efuse_val);
 
+	pvs_bin = tbl_idx;
+
 	return &pvs_tables[bin_idx][tbl_idx];
 }
 
@@ -1214,6 +1226,64 @@ static void __init hw_init(void)
 	bus_init(l2_level);
 }
 
+static int acpu_table_show(struct seq_file *m, void *unused)
+{
+	const struct acpu_level *level;
+	char *pvs_names[] = { "Slow", "Nominal", "Fast", "Faster", "Unknown" };
+	int under_uV;
+
+	seq_printf(m, "CPU PVS: %s\n", pvs_names[pvs_bin]);
+	seq_printf(m, "Boost uV: %u\n", drv.boost_uv);
+	seq_printf(m, "Boost uV enabled: %s\n", (enable_boost ? "Yes" : "No"));
+	seq_printf(m, "Upper KHZ threshold: %lu\n", upper_khz_thres);
+	seq_printf(m, "Lower under uV: %u\n", lower_uV);
+	seq_printf(m, "Upper under uV: %u\n\n", upper_uV);
+	seq_printf(m, "CPU KHz  VDD(stock)  VDD(final)\n");
+
+	for (level = drv.acpu_freq_tbl; level->speed.khz != 0; level++) {
+		if (!level->use_for_scaling)
+			continue;
+
+		/* CPU speed information */
+		seq_printf(m, "%7lu  ",	level->speed.khz);
+
+		/* Core voltage stock information */
+		seq_printf(m, "%10d  ", level->vdd_core + drv.boost_uv);
+
+		under_uV = (level->speed.khz >= upper_khz_thres) ? upper_uV :
+								   lower_uV;
+		/* Core voltage final information */
+		seq_printf(m, "%10d\n", level->vdd_core +
+				(enable_boost ? drv.boost_uv : 0) - under_uV);
+	}
+
+	return 0;
+}
+
+static int acpu_table_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, acpu_table_show, inode->i_private);
+}
+
+static const struct file_operations acpu_table_fops = {
+	.open		= acpu_table_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+void __init acpuclk_krait_debug_init(void)
+{
+	static struct dentry *base_dir;
+
+	base_dir = debugfs_create_dir("acpuclk", NULL);
+	if (!base_dir)
+		return;
+
+	debugfs_create_file("acpu_table", S_IRUGO, base_dir, NULL,
+				&acpu_table_fops);
+}
+
 int __init acpuclk_krait_init(struct device *dev,
 			      const struct acpuclk_krait_params *params)
 {
@@ -1224,6 +1294,8 @@ int __init acpuclk_krait_init(struct device *dev,
 	dcvs_freq_init();
 	acpuclk_register(&acpuclk_krait_data);
 	register_hotcpu_notifier(&acpuclk_cpu_notifier);
+
+	acpuclk_krait_debug_init();
 
 	return 0;
 }

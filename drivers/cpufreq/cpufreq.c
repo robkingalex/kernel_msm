@@ -694,14 +694,6 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
-#ifdef CONFIG_MSM_CPU_VOLTAGE_CONTROL
-extern ssize_t show_UV_mV_table(struct cpufreq_policy *policy,
-					char *buf);
-
-extern ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
-					const char *buf, size_t count);
-#endif
-
 #ifdef CONFIG_GPU_VOLTAGE_TABLE
 ssize_t show_gpu_mv_table(struct cpufreq_policy *policy, char *buf)
 {
@@ -733,12 +725,15 @@ cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
+<<<<<<< HEAD
 #ifdef CONFIG_MSM_CPU_VOLTAGE_CONTROL
 cpufreq_freq_attr_rw(UV_mV_table);
 #endif
 #ifdef CONFIG_GPU_VOLTAGE_TABLE
 cpufreq_freq_attr_rw(gpu_mv_table);
 #endif
+=======
+>>>>>>> parent of bf2fad3... msm: krait: added userspace voltage control
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -753,12 +748,15 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
+<<<<<<< HEAD
 #ifdef CONFIG_MSM_CPU_VOLTAGE_CONTROL
 	&UV_mV_table.attr,
 #endif
 #ifdef CONFIG_GPU_VOLTAGE_TABLE
 	&gpu_mv_table.attr,
 #endif
+=======
+>>>>>>> parent of bf2fad3... msm: krait: added userspace voltage control
 	NULL
 };
 

@@ -1584,13 +1584,6 @@ config CPU_OVERCLOCK
 	help
 	  Krait overclocking up to 1.7 GHz
 
-
-config MSM_CPU_VOLTAGE_CONTROL
-	bool "Userspace CPU Voltage Control"
-	default y
-	help
-	  This enables userspace CPU Voltage Control
-
 config GPU_VOLTAGE_TABLE
 	bool "Enable GPU Voltage Table via sysfs for adjustments"
 	default n

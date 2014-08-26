@@ -22,7 +22,7 @@
 #include <linux/leds.h>
 #include "leds.h"
 
-#define HIGH_TEMP	(62)	/* in Celcius */
+#define HIGH_TEMP	(66)	/* in Celcius */
 #define LOW_TEMP	(52)
 #define SENSOR_ID	(7)
 #define DELAY_OFF	(5 * HZ)

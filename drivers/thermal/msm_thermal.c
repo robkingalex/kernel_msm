@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -34,10 +34,9 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/android_alarm.h>
-#include <mach/cpufreq.h>
+#include <linux/thermal.h>
 #include <mach/rpm-regulator.h>
 #include <mach/rpm-regulator-smd.h>
-#include <mach/cpufreq.h>
 #include <linux/regulator/consumer.h>
 
 #define MAX_RAILS 5
@@ -61,13 +60,13 @@ static uint32_t hist_index = 0;
 static struct msm_thermal_data msm_thermal_info;
 
 static struct msm_thermal_data msm_thermal_info_local = {
-	.sensor_id = 5,
+	.sensor_id = 0,
 	.poll_ms = DEFAULT_POLLING_MS,
-	.limit_temp_degC = 75,
+	.limit_temp_degC = 77,
 	.temp_hysteresis_degC = 5,
 	.freq_step = 2,
 	.freq_control_mask = 0xf,
-	.core_limit_temp_degC = 75,
+	.core_limit_temp_degC = 80,
 	.core_temp_hysteresis_degC = 5,
 	.core_control_mask = 0xe,
 };
@@ -83,16 +82,16 @@ static struct alarm thermal_rtc;
 static struct kobject *tt_kobj;
 static struct work_struct timer_work;
 
-static int enabled;
+static int intelli_enabled;
 static int rails_cnt;
 static int psm_rails_cnt;
 static int limit_idx;
 
 /*
- * min limit is set to 1267200!
+ * min limit is set to 1190400!
  * check your FREQ Table and set corect freq number.
  */
-static int limit_idx_low = 8;
+static int limit_idx_low = 7;
 
 static int limit_idx_high;
 static int throttled;
@@ -137,6 +136,15 @@ module_param_named(thermal_limit_low, limit_idx_low, int, 0664);
 
 module_param_named(thermal_debug_mode, debug_mode, int, 0664);
 
+static unsigned int freq_debug = 1;
+module_param_named(freq_limit_debug, freq_debug, uint, 0644);
+
+#define dprintk(msg...)		\
+do {				\
+	if (freq_debug)		\
+		pr_info(msg);	\
+} while (0)
+
 struct rail {
 	const char *name;
 	uint32_t freq_req;
@@ -176,7 +184,7 @@ enum PMIC_SW_MODE {
 
 #define VDD_RES_RO_ATTRIB(_rail, ko_attr, j, _name) \
 	ko_attr.attr.name = __stringify(_name); \
-	ko_attr.attr.mode = 444; \
+	ko_attr.attr.mode = 0444; \
 	ko_attr.show = vdd_rstr_reg_##_name##_show; \
 	ko_attr.store = NULL; \
 	sysfs_attr_init(&ko_attr.attr); \
@@ -184,7 +192,7 @@ enum PMIC_SW_MODE {
 
 #define VDD_RES_RW_ATTRIB(_rail, ko_attr, j, _name) \
 	ko_attr.attr.name = __stringify(_name); \
-	ko_attr.attr.mode = 644; \
+	ko_attr.attr.mode = 0644; \
 	ko_attr.show = vdd_rstr_reg_##_name##_show; \
 	ko_attr.store = vdd_rstr_reg_##_name##_store; \
 	sysfs_attr_init(&ko_attr.attr); \
@@ -201,7 +209,7 @@ enum PMIC_SW_MODE {
 
 #define PSM_RW_ATTRIB(_rail, ko_attr, j, _name) \
 	ko_attr.attr.name = __stringify(_name); \
-	ko_attr.attr.mode = 644; \
+	ko_attr.attr.mode = 0644; \
 	ko_attr.show = psm_reg_##_name##_show; \
 	ko_attr.store = psm_reg_##_name##_store; \
 	sysfs_attr_init(&ko_attr.attr); \
@@ -418,7 +426,7 @@ done_vdd_rstr_en:
 
 static struct vdd_rstr_enable vdd_rstr_en = {
 	.ko_attr.attr.name = __stringify(enabled),
-	.ko_attr.attr.mode = 644,
+	.ko_attr.attr.mode = 0644,
 	.ko_attr.show = vdd_rstr_en_show,
 	.ko_attr.store = vdd_rstr_en_store,
 	.enabled = 1,
@@ -663,11 +671,11 @@ static int update_cpu_max_freq(int cpu, uint32_t max_freq, long temp)
 
 	if (!cpu) {
 		if (max_freq != UINT_MAX)
-			pr_info
+			dprintk
 			    ("%s: Limiting max frequency to %d [Temp %ldC]\n",
 			     KBUILD_MODNAME, max_freq, temp);
 		else
-			pr_info("%s: Max frequency reset [Temp %ldC]\n",
+			dprintk("%s: Max frequency reset [Temp %ldC]\n",
 				KBUILD_MODNAME, temp);
 	}
 	get_online_cpus();
@@ -690,6 +698,10 @@ static void __ref do_core_control(long temp)
 	if (!core_control_enabled)
 		return;
 
+	if (msm_thermal_info_local.limit_temp_degC <
+			msm_thermal_info_local.core_limit_temp_degC)
+		return;
+
 	/**
 	 *  Offline cores starting from the max MPIDR to 1, when above limit,
 	 *  The core control mask is non zero and allows the core to be turned
@@ -709,7 +721,7 @@ static void __ref do_core_control(long temp)
 				continue;
 			if (cpus_offlined & BIT(i) && !cpu_online(i))
 				continue;
-			pr_info("%s: Set Offline: CPU%d Temp: %ld\n",
+			dprintk("%s: Set Offline: CPU%d Temp: %ld\n",
 					KBUILD_MODNAME, i, temp);
 			ret = cpu_down(i);
 			if (ret)
@@ -725,7 +737,7 @@ static void __ref do_core_control(long temp)
 			if (!(cpus_offlined & BIT(i)))
 				continue;
 			cpus_offlined &= ~BIT(i);
-			pr_info("%s: Allow Online CPU%d Temp: %ld\n",
+			dprintk("%s: Allow Online CPU%d Temp: %ld\n",
 					KBUILD_MODNAME, i, temp);
 			/*
 			 * If this core is already online, then bring up the
@@ -851,13 +863,13 @@ static void __ref do_freq_control(long temp)
 	int cpu = 0;
 	uint32_t max_freq = thermal_limited_max_freq;
 
-	if (msm_thermal_info_local.limit_temp_degC > 80)
-		msm_thermal_info_local.limit_temp_degC = 80;
+	if (msm_thermal_info_local.limit_temp_degC > 82)
+		msm_thermal_info_local.limit_temp_degC = 82;
 
 	if (debug_mode == 1)
-		printk(KERN_ERR "pre-check do_freq_control temp[%u], \
-				limit_idx[%u], limit_idx_low[%u], \
-				limited_idx_high[%u]\n",
+		printk(KERN_ERR "pre-check do_freq_control temp[%ld], \
+				limit_idx[%d], limit_idx_low[%d], \
+				limited_idx_high[%d]\n",
 				temp, limit_idx, limit_idx_low,
 				limit_idx_high);
 
@@ -888,9 +900,9 @@ static void __ref do_freq_control(long temp)
 	}
 
 	if (debug_mode == 1)
-		printk(KERN_ERR "do_freq_control temp[%u], \
-				limit_idx[%u], max_freq[%u], \
-				thermal_limited_max_freq[%u]\n",
+		printk(KERN_ERR "do_freq_control temp[%ld], \
+				limit_idx[%d], max_freq[%d], \
+				thermal_limited_max_freq[%d]\n",
 				temp, limit_idx, max_freq,
 				thermal_limited_max_freq);
 
@@ -913,13 +925,11 @@ static void __ref do_freq_control(long temp)
 
 	thermal_limited_max_freq = max_freq;
 	/* Update new limits */
-	get_online_cpus();
 	for_each_possible_cpu(cpu) {
 		if (!(msm_thermal_info_local.freq_control_mask & BIT(cpu)))
 			continue;
 		update_cpu_max_freq(cpu, max_freq, temp);
 	}
-	put_online_cpus();
 }
 
 static void __ref check_temp(struct work_struct *work)
@@ -961,7 +971,7 @@ static void __ref check_temp(struct work_struct *work)
 	do_freq_control(temp);
 
 reschedule:
-	if (enabled)
+	if (intelli_enabled)
 		schedule_delayed_work(&check_temp_work,
 				msecs_to_jiffies(msm_thermal_info_local.poll_ms));
 }
@@ -1055,19 +1065,19 @@ static int __ref set_enabled(const char *val, const struct kernel_param *kp)
 	int ret = 0;
 
 	if (*val == '0' || *val == 'n' || *val == 'N') {
-		enabled = 0;
+		intelli_enabled = 0;
 		disable_msm_thermal();
 		pr_info("msm_thermal: disabling...\n");
 	} else {
-		if (!enabled) {
-			enabled = 1;
+		if (!intelli_enabled) {
+			intelli_enabled = 1;
 			schedule_delayed_work(&check_temp_work,
 					msecs_to_jiffies(10000));
 			pr_info("msm_thermal: rescheduling...\n");
 		} else
-			pr_info("msm_thermal: already running...\n");
+			pr_info("msm_thermal: already running. if you wish to disable echo N > intelli_enabled\n");
 	}
-	pr_info("%s: enabled = %d\n", KBUILD_MODNAME, enabled);
+	pr_info("%s: intelli_enabled = %d\n", KBUILD_MODNAME, intelli_enabled);
 	ret = param_set_bool(val, kp);
 
 	return ret;
@@ -1078,8 +1088,8 @@ static struct kernel_param_ops module_ops = {
 	.get = param_get_bool,
 };
 
-module_param_cb(enabled, &module_ops, &enabled, 0664);
-MODULE_PARM_DESC(enabled, "enforce thermal limit on cpu");
+module_param_cb(intelli_enabled, &module_ops, &intelli_enabled, 0644);
+MODULE_PARM_DESC(intelli_enabled, "enforce thermal limit on cpu");
 
 #ifdef CONFIG_INTELLI_THERMAL_STATS
 static ssize_t show_thermal_stats(struct kobject *kobj,
@@ -1245,7 +1255,7 @@ static ssize_t __ref store_cpus_offlined(struct kobject *kobj,
 		goto done_cc;
 	}
 
-	if (enabled) {
+	if (intelli_enabled) {
 		pr_err("%s: Ignoring request; polling thread is enabled.\n",
 				KBUILD_MODNAME);
 		goto done_cc;
@@ -1406,7 +1416,7 @@ int __devinit msm_thermal_init(struct msm_thermal_data *pdata)
 	if (check_sensor_id(msm_thermal_info_local.sensor_id))
 		return -EINVAL;
 
-	enabled = 1;
+	intelli_enabled = 1;
 
 	ret = cpufreq_register_notifier(&msm_thermal_cpufreq_notifier,
 			CPUFREQ_POLICY_NOTIFIER);

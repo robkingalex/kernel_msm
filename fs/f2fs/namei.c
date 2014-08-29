@@ -41,14 +41,19 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	}
 	f2fs_unlock_op(sbi);
 
-	inode->i_uid = current_fsuid();
+	if (IS_ANDROID_EMU(sbi, F2FS_I(dir), F2FS_I(dir)))
+		f2fs_android_emu(sbi, inode, &inode->i_uid,
+				 &inode->i_gid, &mode);
+	else {
+		inode->i_uid = current_fsuid();
 
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			mode |= S_ISGID;
-	} else {
-		inode->i_gid = current_fsgid();
+		if (dir->i_mode & S_ISGID) {
+			inode->i_gid = dir->i_gid;
+			if (S_ISDIR(mode))
+				mode |= S_ISGID;
+		} else {
+			inode->i_gid = current_fsgid();
+		}
 	}
 
 	inode->i_ino = ino;
@@ -181,7 +186,7 @@ out:
 
 struct dentry *f2fs_get_parent(struct dentry *child)
 {
-	struct qstr dotdot = { .name = "..", .len = 2 };
+	struct qstr dotdot = {.name = "..", .len = 2};
 	unsigned long ino = f2fs_inode_by_name(child->d_inode, &dotdot);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
@@ -474,7 +479,10 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return 0;
 
 put_out_dir:
-	f2fs_put_page(new_page, 1);
+	if (PageLocked(new_page))
+		f2fs_put_page(new_page, 1);
+	else
+		f2fs_put_page(new_page, 0);
 out_dir:
 	if (old_dir_entry) {
 		kunmap(old_dir_page);

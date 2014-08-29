@@ -190,7 +190,7 @@ retry:
 	write_unlock(&nm_i->nat_tree_lock);
 }
 
-static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
+static int set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 			block_t new_blkaddr)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
@@ -214,7 +214,14 @@ retry:
 		 * So, reinitialize it with new information.
 		 */
 		e->ni = *ni;
-		f2fs_bug_on(ni->blk_addr != NULL_ADDR);
+		if (ni->blk_addr != NULL_ADDR) {
+			f2fs_msg(sbi->sb, KERN_ERR, "node block address is "
+				"already set: %u", ni->blk_addr);
+			f2fs_handle_error(sbi);
+			/* just give up on this node */
+			write_unlock(&nm_i->nat_tree_lock);
+			return -EIO;
+		}
 	}
 
 	if (new_blkaddr == NEW_ADDR)
@@ -240,6 +247,7 @@ retry:
 	nat_set_blkaddr(e, new_blkaddr);
 	__set_nat_cache_dirty(nm_i, e);
 	write_unlock(&nm_i->nat_tree_lock);
+	return 0;
 }
 
 int try_to_free_nats(struct f2fs_sb_info *sbi, int nr_shrink)
@@ -497,7 +505,12 @@ static void truncate_node(struct dnode_of_data *dn)
 
 	get_node_info(sbi, dn->nid, &ni);
 	if (dn->inode->i_blocks == 0) {
-		f2fs_bug_on(ni.blk_addr != NULL_ADDR);
+		if (ni.blk_addr != NULL_ADDR) {
+			f2fs_msg(sbi->sb, KERN_ERR,
+					"empty node still has block address %u ",
+					ni.blk_addr);
+			f2fs_handle_error(sbi);
+		}
 		goto invalidate;
 	}
 	f2fs_bug_on(ni.blk_addr == NULL_ADDR);
@@ -692,6 +705,8 @@ int truncate_inode_blocks(struct inode *inode, pgoff_t from)
 	struct dnode_of_data dn;
 	struct page *page;
 
+	noffset[1] = 0;
+
 	trace_f2fs_truncate_inode_blocks_enter(inode, from);
 
 	level = get_node_path(F2FS_I(inode), from, offset, noffset);
@@ -825,7 +840,11 @@ void remove_inode_page(struct inode *inode)
 		return;
 	}
 	/* 0 is possible, after f2fs_new_inode() is failed */
-	f2fs_bug_on(inode->i_blocks != 0 && inode->i_blocks != 1);
+	if (inode->i_blocks != 0 && inode->i_blocks != 1) {
+		f2fs_msg(sbi->sb, KERN_ERR, "inode %u still has %llu blocks",
+				ino, inode->i_blocks);
+		f2fs_handle_error(sbi);
+	}
 	set_new_dnode(&dn, inode, page, page, ino);
 	truncate_node(&dn);
 }
@@ -968,7 +987,13 @@ repeat:
 		goto repeat;
 	}
 got_it:
-	f2fs_bug_on(nid != nid_of_node(page));
+	if (nid != nid_of_node(page)) {
+		f2fs_msg(sbi->sb, KERN_ERR, "page node id does not match "
+			"request: %lu", nid);
+		f2fs_handle_error(sbi);
+		f2fs_put_page(page, 1);
+		return ERR_PTR(-EIO);
+	}
 	mark_page_accessed(page);
 	return page;
 }
@@ -1540,6 +1565,7 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	nid_t ino = ino_of_node(page);
 	struct node_info old_ni, new_ni;
 	struct page *ipage;
+	int err;
 
 	ipage = grab_cache_page(NODE_MAPPING(sbi), ino);
 	if (!ipage)
@@ -1564,12 +1590,14 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 	new_ni = old_ni;
 	new_ni.ino = ino;
 
-	if (unlikely(!inc_valid_node_count(sbi, NULL)))
-		WARN_ON(1);
-	set_node_addr(sbi, &new_ni, NEW_ADDR);
-	inc_valid_inode_count(sbi);
+	err = set_node_addr(sbi, &new_ni, NEW_ADDR);
+	if (!err)
+		if (unlikely(!inc_valid_node_count(sbi, NULL)))
+			err = -ENOSPC;
+	if (!err)
+		inc_valid_inode_count(sbi);
 	f2fs_put_page(ipage, 1);
-	return 0;
+	return err;
 }
 
 /*

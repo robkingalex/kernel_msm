@@ -22,10 +22,8 @@
 
 #ifdef CONFIG_F2FS_CHECK_FS
 #define f2fs_bug_on(condition)	BUG_ON(condition)
-#define f2fs_down_write(x, y)	down_write_nest_lock(x, y)
 #else
 #define f2fs_bug_on(condition)
-#define f2fs_down_write(x, y)	down_write(x)
 #endif
 
 /*
@@ -39,6 +37,9 @@
 #define F2FS_MOUNT_POSIX_ACL		0x00000020
 #define F2FS_MOUNT_DISABLE_EXT_IDENTIFY	0x00000040
 #define F2FS_MOUNT_INLINE_XATTR		0x00000080
+#define F2FS_MOUNT_ANDROID_EMU		0x00001000
+#define F2FS_MOUNT_ERRORS_PANIC		0x00002000
+#define F2FS_MOUNT_ERRORS_RECOVER	0x00004000
 #define F2FS_MOUNT_INLINE_DATA		0x00000100
 
 #define clear_opt(sbi, option)	(sbi->mount_opt.opt &= ~F2FS_MOUNT_##option)
@@ -178,7 +179,7 @@ struct extent_info {
 	rwlock_t ext_lock;	/* rwlock for consistency */
 	unsigned int fofs;	/* start offset in a file */
 	u32 blk_addr;		/* start block address of the extent */
-	unsigned int len;	/* lenth of the extent */
+	unsigned int len;	/* length of the extent */
 };
 
 /*
@@ -186,6 +187,8 @@ struct extent_info {
  */
 #define FADVISE_COLD_BIT	0x01
 #define FADVISE_LOST_PINO_BIT	0x02
+#define FADVISE_ANDROID_EMU	0x10
+#define FADVISE_ANDROID_EMU_ROOT 0x20
 
 struct f2fs_inode_info {
 	struct inode vfs_inode;		/* serve a vfs inode */
@@ -367,6 +370,11 @@ enum page_type {
 	META_FLUSH,
 };
 
+/*
+ * Android sdcard emulation flags
+ */
+#define F2FS_ANDROID_EMU_NOCASE		0x00000001
+
 struct f2fs_io_info {
 	enum page_type type;	/* contains DATA/NODE/META/META_FLUSH */
 	int rw;			/* contains R/RS/W/WS with REQ_META/REQ_PRIO */
@@ -473,6 +481,12 @@ struct f2fs_sb_info {
 	/* For sysfs suppport */
 	struct kobject s_kobj;
 	struct completion s_kobj_unregister;
+
+	/* For Android sdcard emulation */
+	u32 android_emu_uid;
+	u32 android_emu_gid;
+	umode_t android_emu_mode;
+	int android_emu_flags;
 };
 
 /*
@@ -590,7 +604,7 @@ static inline void f2fs_unlock_op(struct f2fs_sb_info *sbi)
 
 static inline void f2fs_lock_all(struct f2fs_sb_info *sbi)
 {
-	f2fs_down_write(&sbi->cp_rwsem, &sbi->cp_mutex);
+	down_write(&sbi->cp_rwsem);
 }
 
 static inline void f2fs_unlock_all(struct f2fs_sb_info *sbi)
@@ -622,6 +636,15 @@ static inline int F2FS_HAS_BLOCKS(struct inode *inode)
 		return inode->i_blocks > F2FS_DEFAULT_ALLOCATED_BLOCKS;
 }
 
+static inline int f2fs_handle_error(struct f2fs_sb_info *sbi)
+{
+	if (test_opt(sbi, ERRORS_PANIC))
+		BUG();
+	if (test_opt(sbi, ERRORS_RECOVER))
+		return 1;
+	return 0;
+}
+
 static inline bool inc_valid_block_count(struct f2fs_sb_info *sbi,
 				 struct inode *inode, blkcnt_t count)
 {
@@ -646,8 +669,20 @@ static inline void dec_valid_block_count(struct f2fs_sb_info *sbi,
 						blkcnt_t count)
 {
 	spin_lock(&sbi->stat_lock);
-	f2fs_bug_on(sbi->total_valid_block_count < (block_t) count);
-	f2fs_bug_on(inode->i_blocks < count);
+
+	if (sbi->total_valid_block_count < (block_t)count) {
+		pr_crit("F2FS-fs (%s): block accounting error: %u < %llu\n",
+			sbi->sb->s_id, sbi->total_valid_block_count, count);
+		f2fs_handle_error(sbi);
+		sbi->total_valid_block_count = count;
+	}
+	if (inode->i_blocks < count) {
+		pr_crit("F2FS-fs (%s): inode accounting error: %llu < %llu\n",
+			sbi->sb->s_id, inode->i_blocks, count);
+		f2fs_handle_error(sbi);
+		inode->i_blocks = count;
+	}
+
 	inode->i_blocks -= count;
 	sbi->total_valid_block_count -= (block_t)count;
 	spin_unlock(&sbi->stat_lock);
@@ -962,6 +997,14 @@ static inline int cond_clear_inode_flag(struct f2fs_inode_info *fi, int flag)
 	}
 	return 0;
 }
+
+int f2fs_android_emu(struct f2fs_sb_info *, struct inode *, u32 *, u32 *,
+		umode_t *);
+
+#define IS_ANDROID_EMU(sbi, fi, pfi)					\
+	(test_opt((sbi), ANDROID_EMU) &&				\
+	 (((fi)->i_advise & FADVISE_ANDROID_EMU) ||			\
+	  ((pfi)->i_advise & FADVISE_ANDROID_EMU)))
 
 static inline void get_inline_info(struct f2fs_inode_info *fi,
 					struct f2fs_inode *ri)

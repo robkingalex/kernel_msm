@@ -202,6 +202,13 @@ config CPU_FREQ_DEFAULT_GOV_ALUCARD
 	select CPU_FREQ_GOV_ALUCARD
 	help
 
+config CPU_FREQ_DEFAULT_GOV_SLIM
+	bool "slim"
+	select CPU_FREQ_GOV_SLIM
+	select CPU_FREQ_GOV_PERFORMANCE
+	help
+	  Use the CPUFreq governor 'slim' as default.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -304,7 +311,6 @@ config CPU_FREQ_GOV_INTERACTIVE
 	  This governor attempts to reduce the latency of clock
 	  increases so that the system is more responsive to
 	  interactive workloads.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called cpufreq_interactive.
 
@@ -322,11 +328,13 @@ config CPU_FREQ_GOV_CONSERVATIVE
 	  its optimisation for better suitability in a battery powered
 	  environment.  The frequency is gracefully increased and decreased
 	  rather than jumping to 100% when speed is required.
+
 	  If you have a desktop machine then you should really be considering
 	  the 'ondemand' governor instead, however if you are using a laptop,
 	  PDA or even an AMD64 based computer (due to the unacceptable
 	  step-by-step latency issues between the minimum and maximum frequency
 	  transitions in the CPU) you will probably want to use this governor.
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called cpufreq_conservative.
 
@@ -389,10 +397,26 @@ config CPU_FREQ_GOV_BLUACTIVE
 
 config CPU_FREQ_GOV_HYPER
 	tristate "'HYPER' cpufreq governor"
+
+config CPU_FREQ_GOV_SLIM
+	tristate "'slim' cpufreq policy governor"
+	select CPU_FREQ_TABLE
+	help
+	  'slim' - This driver adds a dynamic cpufreq policy governor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpufreq_slim.
+
+	  For details, take a look at linux/Documentation/cpu-freq.
+
+	  If in doubt, say N.
+
+config SEC_DVFS
+	bool "DVFS job"
+	default n
 	depends on CPU_FREQ
 	---help---
 	  'HYPER' - a tweaked "ondemand" based smart and smooth optimized governor!
-
 	  If in doubt, say Y
 
 config CPU_FREQ_GOV_DARKNESS

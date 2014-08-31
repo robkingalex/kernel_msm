@@ -26,7 +26,6 @@
 #include <linux/msm_tsens.h>
 #include <linux/msm_thermal.h>
 #include <linux/thermal.h>
-#include <mach/cpufreq.h>
 
 #define DEFAULT_POLLING_MS	250
 
@@ -47,7 +46,7 @@ static uint32_t hist_index = 0;
 static struct msm_thermal_data msm_thermal_info = {
 	.sensor_id = 5,
 	.poll_ms = DEFAULT_POLLING_MS,
-	.limit_temp_degC = 70,
+	.limit_temp_degC = 75,
 	.temp_hysteresis_degC = 5,
 	.freq_step = 2,
 	.freq_control_mask = 0xf,
@@ -70,7 +69,7 @@ static int limit_idx;
  * min limit is set to 1267200!
  * check your FREQ Table and set corect freq number.
  */
-static int limit_idx_low = 4;
+static int limit_idx_low = 5;
 
 static int limit_idx_high;
 static int throttled;

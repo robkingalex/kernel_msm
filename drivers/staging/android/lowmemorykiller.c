@@ -155,7 +155,7 @@ static bool protected_apps(char *comm)
 
 static int test_task_flag(struct task_struct *p, int flag)
 {
-	struct task_struct *t;
+	struct task_struct *t = p;
 
 	for_each_thread(p,t) {
 		task_lock(t);
@@ -327,7 +327,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	short selected_oom_score_adj;
 	int array_size = ARRAY_SIZE(lowmem_adj);
 	int other_free;
-	int other_file;
+	int other_file = 0;
 	unsigned long nr_to_scan = sc->nr_to_scan;
 #if defined (CONFIG_SWAP) && (defined (CONFIG_ZSWAP) || defined (CONFIG_ZRAM))
 	struct sysinfo si;
@@ -436,7 +436,18 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			continue;
 
 		oom_score_adj = p->signal->oom_score_adj;
-		if (oom_score_adj < min_score_adj) {
+		if (oom_score_adj < selected_oom_score_adj) {
+			task_unlock(p);
+#ifdef CONFIG_ANDROID_LMK_ADJ_RBTREE
+			break;
+#else
+			continue;
+#endif
+		}
+		if (fatal_signal_pending(p) ||
+				((p->flags & PF_EXITING) &&
+					test_tsk_thread_flag(p, TIF_MEMDIE))) {
+			lowmem_print(2, "skip slow dying process %d\n", p->pid);
 			task_unlock(p);
 #ifdef CONFIG_ANDROID_LMK_ADJ_RBTREE
 			break;

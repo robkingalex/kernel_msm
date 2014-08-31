@@ -12,6 +12,7 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 # Set default hotplug here:
 	echo 0 > /sys/module/autosmp/parameters/enabled
 	echo 0 > /sys/module/dyn_hotplug/parameters/enabled
+	echo 0 > /sys/module/msm_hotplug/enabled
 	echo 1 > /sys/kernel/intelli_plug/intelli_plug_active
 	echo "[defcon] hotplug options set!" | tee /dev/kmsg
 

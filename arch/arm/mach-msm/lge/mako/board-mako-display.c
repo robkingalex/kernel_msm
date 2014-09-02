@@ -534,16 +534,20 @@ static int mipi_dsi_panel_power(int on)
 			return -ENODEV;
 		}
 
-		rc = regulator_set_voltage(reg_l8, 3000000, 3000000);
+		rc = regulator_set_voltage(reg_l8, 2000000, 2000000);
 		if (rc) {
 			pr_err("set_voltage l8 failed, rc=%d\n", rc);
 			return -EINVAL;
+		} else {
+			pr_err("HACK - set_voltage l8 succeed\n");	
 		}
 
 		rc = regulator_set_voltage(reg_l2, 1200000, 1200000);
 		if (rc) {
 			pr_err("set_voltage l2 failed, rc=%d\n", rc);
 			return -EINVAL;
+		} else {
+			pr_err("HACK - set_voltage l2 succeed\n");	
 		}
 
 		dsi_power_on = true;

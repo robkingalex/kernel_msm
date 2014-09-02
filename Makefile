@@ -366,7 +366,7 @@ MODFLAGS        = -DMODULE \
                   -mtune=cortex-a15 \
                   -Ofast \
                   -fgcse-las \
-		  -fpredictive-commoning
+                  -fpredictive-commoning
 
 CFLAGS_MODULE   = $(MODFLAGS)
 AFLAGS_MODULE   = $(MODFLAGS)
@@ -410,10 +410,10 @@ KBUILD_CFLAGS   := -Wall -DNDEBUG -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-delete-null-pointer-checks \
 		   -pipe
 KBUILD_AFLAGS_KERNEL :=
-KBUILD_CFLAGS_KERNEL :=
+KBUILD_CFLAGS_KERNEL := -mtune=cortex-a15 -march=armv7-a -mfpu=neon-vfpv4
 KBUILD_AFLAGS   := -D__ASSEMBLY__
 KBUILD_AFLAGS_MODULE  := -DMODULE
-KBUILD_CFLAGS_MODULE  := -DMODULE
+KBUILD_CFLAGS_MODULE  := -DMODULE -mtune=cortex-a15 -march=armv7-a -mfpu=neon-vfpv4
 KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
 
 # Read KERNELRELEASE from include/config/kernel.release (if it exists)

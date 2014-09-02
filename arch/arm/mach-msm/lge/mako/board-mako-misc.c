@@ -120,10 +120,12 @@ static int vibrator_power_set(int enable)
 
 	mutex_lock(&vib_lock);
 
-	rc = regulator_set_voltage(vreg_l16, 2800000, 2800000);
+	rc = regulator_set_voltage(vreg_l16, 2600000, 2600000);
 	if (rc < 0)
 		pr_err("%s: regulator_set_voltage failed\n", __func__);
-
+	 else
+		pr_err("HACK - %s: regulator_set_voltage succeed\n", __func__);
+			
 	vibrator_enabled = enable;
 	if (enable) {
 		rc = regulator_enable(vreg_l16);

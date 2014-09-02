@@ -91,7 +91,7 @@ static void sync_one_sb(struct super_block *sb, void *arg)
  * Sync all the data for all the filesystems (called by sys_sync() and
  * emergency sync)
  */
-void sync_filesystems(int wait)
+static void sync_filesystems(int wait)
 {
 	iterate_supers(sync_one_sb, &wait);
 }
@@ -255,9 +255,10 @@ static int do_fsync(unsigned int fd, int datasync)
 {
 	struct file *file;
 	int ret = -EBADF;
-	int fput_needed;
 
+	int fput_needed;
 	file = fget_light(fd, &fput_needed);
+
 	if (file) {
 		ret = vfs_fsync(file, datasync);
 		fput_light(file, fput_needed);

@@ -326,9 +326,7 @@ static int do_fsync(unsigned int fd, int datasync)
 	struct fsync_work *fwork;
 #endif
 
-	int fput_needed;
-	file = fget_light(fd, &fput_needed);
-
+	file = fget(fd);
 	if (file) {
 		ktime_t fsync_t, fsync_diff;
 		char pathname[256], *path;
@@ -360,7 +358,6 @@ no_async:
 #endif
 		fsync_t = ktime_get();
 		ret = vfs_fsync(file, datasync);
-		fput_light(file, fput_needed);
 		fput(file);
 		fsync_diff = ktime_sub(ktime_get(), fsync_t);
 		if (ktime_to_ms(fsync_diff) >= 5000) {

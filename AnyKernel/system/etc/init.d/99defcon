@@ -16,6 +16,13 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo 1 > /sys/kernel/intelli_plug/intelli_plug_active
 	echo "[defcon] hotplug options set!" | tee /dev/kmsg
 
+# CPU Boost Driver settings:
+	echo "40" > /sys/module/cpu_boost/parameters/input_boost_ms
+	echo "918000" > /sys/module/cpu_boost/parameters/input_boost_freq
+	echo "[defcon] input boost enabled!" | tee /dev/kmsg
+	echo 1 > /sys/module/cpu_boost/parameters/hotplug_boost
+
+
 # Neobuddy Intelliplug options
 # profile selections for full_mode_profile
 # 0 balanced 4 cores (default)
@@ -63,7 +70,7 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "westwood" > /proc/sys/net/ipv4/tcp_congestion_control
 	echo "[defcon] TCP set: westwood" | tee /dev/kmsg
 
-# Set IntelliActive as default:	
+# Set HYPER as default CPU governor:	
 	echo "HYPER" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 	echo "HYPER" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
 	echo "HYPER" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor
@@ -72,7 +79,14 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "384000" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq
 	echo "384000" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_min_freq
 	echo "384000" > /sys/devices/system/cpu/cpu3/cpufreq/scaling_min_freq
+	echo "1" > /sys/devices/system/cpu/cpufreq/HYPER/io_is_busy
+	echo "95" > /sys/devices/system/cpu/cpufreq/HYPER/up_threshold
+	echo "95" > /sys/devices/system/cpu/cpufreq/HYPER/micro_freq_up_threshold
 	echo "[defcon] HYPER CPU Governor activated" | tee /dev/kmsg
+
+# Ultra Samepage Merging settings low, medium, full, or quiet can be set.
+	echo "medium" > /sys/kernel/mm/uksm/cpu_governor
+
 
 # Set Power Save Settings
 	echo 1 > /sys/module/pm_8x60/modes/cpu0/wfi/suspend_enabled
@@ -124,6 +138,11 @@ fi
 	$bb chmod -R 775 /system/etc/init.d;
 	$bb mount -o ro,remount /system;
 	echo "[defcon] init.d permissions set" | tee /dev/kmsg
+
+# Set permissions for Lowmemorykiller not having the right persmissions with some roms
+	$bb chown -R root.root /sys/module/lowmemorykiller/parameters;
+	$bb chmod -R 775 /sys/module/lowmemorykiller/parameters;
+	echo "[defcon] LMK permissions set" | tee /dev/kmsg
 
 # Interactive Options
 	echo 20000 1300000:40000 1400000:20000 > /sys/devices/system/cpu/cpufreq/interactive/above_hispeed_delay

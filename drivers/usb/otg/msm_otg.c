@@ -115,52 +115,6 @@ static int otg_hack_active = 0;
 module_param_named(otg_hack_enable,
 			otg_hack_active,
 			int, 0664);
-#ifdef CONFIG_USB_HOST_NOTIFY
-static void msm_otg_set_id_state_pbatest(int id, struct host_notify_dev *ndev)
-{
-	struct msm_otg *motg = container_of(ndev, struct msm_otg, ndev);
-
-	dev_info(motg->phy.dev, "%s, !id=%d\n", __func__, !id);
-
-	if (atomic_read(&motg->in_lpm))
-		pm_runtime_resume(motg->phy.dev);
-	if (!id)
-		set_bit(ID, &motg->inputs);
-	else
-		clear_bit(ID, &motg->inputs);
-
-	schedule_work(&motg->sm_work);
-}
-
-enum usb_notify_state {
-	ACC_POWER_ON = 0,
-	ACC_POWER_OFF,
-	ACC_POWER_OVER_CURRENT,
-};
-
-static void msm_otg_notify_work(struct work_struct *w)
-{
-	struct msm_otg *motg = container_of(w, struct msm_otg, notify_work);
-
-	if (motg->smartdock)
-		return;
-
-	switch (motg->notify_state) {
-	case ACC_POWER_ON:
-		dev_info(motg->phy.dev, "Acc power on detect\n");
-		break;
-	case ACC_POWER_OFF:
-		dev_info(motg->phy.dev, "Acc power off detect\n");
-		break;
-	case ACC_POWER_OVER_CURRENT:
-		host_state_notify(&motg->ndev, NOTIFY_HOST_OVERCURRENT);
-		dev_err(motg->phy.dev, "OTG overcurrent!!!!!!\n");
-		break;
-	default:
-		break;
-	}
-}
-#endif
 
 static int msm_hsusb_ldo_init(struct msm_otg *motg, int init)
 {
@@ -3135,76 +3089,6 @@ static void msm_otg_set_vbus_state(int online)
 	else
 		schedule_work(&motg->sm_work);
 }
-#else
-void msm_otg_set_vbus_state(int online)
-{
-	struct msm_otg *motg = the_msm_otg;
-
-	if (online) {
-		dev_info(motg->phy.dev, "MUIC: BSV set\n");
-		set_bit(B_SESS_VLD, &motg->inputs);
-#ifdef CONFIG_CHARGER_MAX77693
-		motg->chg_state = USB_CHG_STATE_DETECTED;
-		motg->chg_type = USB_SDP_CHARGER;
-#endif
-	} else {
-		dev_info(motg->phy.dev, "MUIC: BSV clear\n");
-		clear_bit(B_SESS_VLD, &motg->inputs);
-	}
-
-	if (atomic_read(&motg->pm_suspended))
-		motg->sm_work_pending = true;
-	else
-		schedule_work(&motg->sm_work);
-}
-EXPORT_SYMBOL_GPL(msm_otg_set_vbus_state);
-#endif
-
-void msm_otg_set_id_state(int online)
-{
-	struct msm_otg *motg = the_msm_otg;
-
-	if (online) {
-		dev_info(motg->phy.dev, "MUIC: ID set\n");
-		set_bit(ID, &motg->inputs);
-		host_state_notify(&motg->ndev, NOTIFY_HOST_REMOVE);
-	} else {
-		dev_info(motg->phy.dev, "MUIC: ID clear\n");
-		clear_bit(ID, &motg->inputs);
-		set_bit(A_BUS_REQ, &motg->inputs);
-		host_state_notify(&motg->ndev, NOTIFY_HOST_ADD);
-	}
-
-	if (atomic_read(&motg->pm_suspended))
-		motg->sm_work_pending = true;
-	else
-		schedule_work(&motg->sm_work);
-}
-EXPORT_SYMBOL_GPL(msm_otg_set_id_state);
-
-void msm_otg_set_smartdock_state(bool online)
-{
-	struct msm_otg *motg = the_msm_otg;
-
-	if (online) {
-		dev_info(motg->phy.dev, "SMARTDOCK : ID set\n");
-		motg->smartdock = false;
-		set_bit(ID, &motg->inputs);
-	} else {
-		dev_info(motg->phy.dev, "SMARTDOCK : ID clear\n");
-		motg->smartdock = true;
-		clear_bit(ID, &motg->inputs);
-	}
-
-	if (test_bit(B_SESS_VLD, &motg->inputs))
-		clear_bit(B_SESS_VLD, &motg->inputs);
-
-	if (atomic_read(&motg->pm_suspended))
-		motg->sm_work_pending = true;
-	else
-		schedule_work(&motg->sm_work);
-}
-EXPORT_SYMBOL_GPL(msm_otg_set_smartdock_state);
 
 static void msm_pmic_id_status_w(struct work_struct *w)
 {

@@ -29,23 +29,29 @@
 #include <linux/time.h>
 #include <linux/vmalloc.h>
 #include "logger.h"
+#ifdef CONFIG_LCD_NOTIFY
+#include <linux/lcd_notify.h>
+#elif defined(CONFIG_EARLYSUSPEND)
 #include <linux/earlysuspend.h>
-
+#endif
 #include <asm/ioctls.h>
 
 #ifndef CONFIG_LOGCAT_SIZE
 #define CONFIG_LOGCAT_SIZE 256
 #endif
 
+#if defined(CONFIG_LCD_NOTIFY) || defined(CONFIG_EARLYSUSPEND)
 /*
- * 0 - Enabled
- * 1 - Auto Suspend
- * 2 - Disabled
+ * 0 - Enabled, 1 - Auto Suspend, 2 - Disabled
  */
-static unsigned int log_mode = 2;
+static unsigned int log_mode = 2; // Disabled by default
 static unsigned int log_enabled = 1; // Do not change this value
-
 module_param(log_mode, uint, S_IWUSR | S_IRUGO);
+
+#ifdef CONFIG_LCD_NOTIFY
+static struct notifier_block notif;
+#endif
+#endif
 
 /**
  * struct logger_log - represents a specific log, such as 'main' or 'radio'
@@ -474,22 +480,50 @@ static ssize_t do_write_log_from_user(struct logger_log *log,
 	return count;
 }
 
-static void log_early_suspend(struct early_suspend *handler)
+#if defined(CONFIG_LCD_NOTIFY) || defined(CONFIG_EARLYSUSPEND)
+#ifdef CONFIG_LCD_NOTIFY
+static void log_suspend(void)
+#elif defined(CONFIG_EARLYSUSPEND)
+static void log_suspend(struct early_suspend *handler)
+#endif
 {
 	if (log_mode == 1)
 		log_enabled = 0;
 }
 
-static void log_late_resume(struct early_suspend *handler)
+#ifdef CONFIG_LCD_NOTIFY
+static void log_resume(void)
+#elif defined(CONFIG_EARLYSUSPEND)
+static void log_resume(struct early_suspend *handler)
+#endif
 {
 	log_enabled = 1;
 }
 
-static struct early_suspend log_suspend = {
-	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 10,
-	.suspend = log_early_suspend,
-	.resume = log_late_resume,
+#ifdef CONFIG_LCD_NOTIFY
+static int lcd_notifier_callback(struct notifier_block *this,
+				unsigned long event, void *data)
+{
+	switch (event) {
+	case LCD_EVENT_ON_END:
+		log_resume();
+		break;
+	case LCD_EVENT_OFF_END:
+		log_suspend();
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+#elif defined(CONFIG_EARLYSUSPEND)
+static struct early_suspend log_early_suspend = {
+	.suspend = log_suspend,
+	.resume = log_resume,
 };
+#endif
+#endif
 
 /*
  * logger_aio_write - our write method, implementing support for write(),
@@ -504,8 +538,10 @@ static ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct logger_entry header;
 	struct timespec now;
 
+#if defined(CONFIG_LCD_NOTIFY) || defined(CONFIG_EARLYSUSPEND)
 	if (!log_enabled || log_mode == 2)
 		return 0;
+#endif
 
 	log = file_get_log(iocb->ki_filp);
 	now = current_kernel_time();
@@ -845,7 +881,16 @@ static int __init logger_init(void)
 {
 	int ret;
 
-	register_early_suspend(&log_suspend);
+#ifdef CONFIG_LCD_NOTIFY
+	notif.notifier_call = lcd_notifier_callback;
+	ret = lcd_register_client(&notif);
+        if (ret != 0) {
+                pr_err("logger: Failed to register LCD notifier callback\n");
+		goto out;
+	}
+#elif defined(CONFIG_EARLYSUSPEND)
+	register_early_suspend(&log_early_suspend);
+#endif
 
 	ret = create_log(LOGGER_LOG_MAIN, CONFIG_LOGCAT_SIZE*1024);
 	if (unlikely(ret))
@@ -879,6 +924,12 @@ static void __exit logger_exit(void)
 		list_del(&current_log->logs);
 		kfree(current_log);
 	}
+#ifdef CONFIG_LCD_NOTIFY
+	lcd_unregister_client(&notif);
+	notif.notifier_call = NULL;
+#elif defined(CONFIG_EARLYSUSPEND)
+	unregister_early_suspend(&log_early_suspend);
+#endif
 }
 
 

@@ -2680,7 +2680,7 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 		if (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_SFP_D) {
 			nesdev->link_recheck = 1;
 			mod_delayed_work(system_wq, &nesdev->work,
-					 NES_LINK_RECHECK_DELAY);
+					      NES_LINK_RECHECK_DELAY);
 		}
 	}
 

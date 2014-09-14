@@ -4319,7 +4319,7 @@ static int ipw_radio_kill_sw(struct ipw2100_priv *priv, int disable_radio)
 			/* Make sure the RF_KILL check timer is running */
 			priv->stop_rf_kill = 0;
 			mod_delayed_work(system_wq, &priv->rf_kill,
-					 round_jiffies_relative(HZ));
+					      round_jiffies_relative(HZ));
 		} else
 			schedule_reset(priv);
 	}

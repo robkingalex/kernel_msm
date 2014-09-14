@@ -291,20 +291,27 @@ static void usb_wwan_indat_callback(struct urb *urb)
 	endpoint = usb_pipeendpoint(urb->pipe);
 	port = urb->context;
 
-	if (status) {
-		dbg("%s: nonzero status: %d on endpoint %02x.",
-		    __func__, status, endpoint);
-	} else {
-		tty = tty_port_tty_get(&port->port);
-		if (tty) {
-			if (urb->actual_length) {
-				tty_insert_flip_string(tty, data,
-						urb->actual_length);
-				tty_flip_buffer_push(tty);
-			} else
-				dbg("%s: empty read urb received", __func__);
-			tty_kref_put(tty);
-		}
+	usb_mark_last_busy(port->serial->dev);
+
+	if ((status == -ENOENT || !status) && urb->actual_length) {
+		spin_lock_irqsave(&portdata->in_lock, flags);
+		list_add_tail(&urb->urb_list, &portdata->in_urb_list);
+		spin_unlock_irqrestore(&portdata->in_lock, flags);
+
+		schedule_work(&portdata->in_work);
+
+		return;
+	}
+
+	dbg("%s: nonzero status: %d on endpoint %02x.",
+		__func__, status, endpoint);
+
+	spin_lock(&intfdata->susp_lock);
+	if (intfdata->suspended || !portdata->opened) {
+		spin_unlock(&intfdata->susp_lock);
+		return;
+	}
+	spin_unlock(&intfdata->susp_lock);
 
 		/* Resubmit urb so we continue receiving */
 		if (status != -ESHUTDOWN) {
@@ -394,6 +401,31 @@ int usb_wwan_chars_in_buffer(struct tty_struct *tty)
 	return data_len;
 }
 EXPORT_SYMBOL(usb_wwan_chars_in_buffer);
+
+void usb_wwan_throttle(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+
+	port->throttle_req = true;
+
+	dbg("%s:\n", __func__);
+}
+EXPORT_SYMBOL(usb_wwan_throttle);
+
+void usb_wwan_unthrottle(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct usb_wwan_port_private *portdata;
+
+	portdata = usb_get_serial_port_data(port);
+
+	dbg("%s:\n", __func__);
+	port->throttle_req = false;
+	port->throttled = false;
+
+	schedule_work(&portdata->in_work);
+}
+EXPORT_SYMBOL(usb_wwan_unthrottle);
 
 int usb_wwan_open(struct tty_struct *tty, struct usb_serial_port *port)
 {

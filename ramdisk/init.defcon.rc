@@ -1,0 +1,6 @@
+# defcon Extras
+
+service defcon /system/bin/sh /init.defcon.sh
+	class late_start
+	user root
+	oneshot

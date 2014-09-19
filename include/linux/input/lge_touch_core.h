@@ -18,51 +18,64 @@
 #ifndef LGE_TOUCH_CORE_H
 #define LGE_TOUCH_CORE_H
 
-//#define MT_PROTOCOL_A
+#include <linux/power_supply.h>
+#include <linux/wakelock.h>
 //#define LGE_TOUCH_TIME_DEBUG
 
 #define MAX_FINGER	10
 #define MAX_BUTTON	4
 
-#ifndef CUST_G_TOUCH
-#define CUST_G_TOUCH
+#ifdef CONFIG_DOUBLETAP_WAKE
+
+#define DTW_MAX_INTERVAL	(700)
+#define DTW_TOUCH_AREA		(30)
+#define DTW_LOCK_TIMEOUT	(700)
+
+struct double_tap_wake {
+	unsigned int max_interval;
+	unsigned int lock_timeout;
+	unsigned int hits;
+	int touch;
+	unsigned long time;
+	struct wake_lock wlock;
+	struct mutex lock;
+};
 #endif
 
-struct touch_device_caps
-{
-	u8		button_support;
-	u16		y_button_boundary;
-	u32		button_margin;		// percentage %
-	u8		number_of_button;
-	u32		button_name[MAX_BUTTON];
-	u8		is_width_supported;
-	u8	 	is_pressure_supported;
-	u8		is_id_supported;
-	u32		max_width;
-	u32		max_pressure;
-	u32		max_id;
-	u32		x_max;
-	u32		y_max;
-	u32		lcd_x;
-	u32		lcd_y;
+struct touch_device_caps {
+	u8              button_support;
+	u16             y_button_boundary;
+	u32             button_margin;
+	u8              number_of_button;
+	u32             button_name[MAX_BUTTON];
+	u8              is_width_major_supported;
+	u8              is_width_minor_supported;
+	u8              is_pressure_supported;
+	u8              is_id_supported;
+	u32             max_width_major;
+	u32             max_width_minor;
+	u32             max_pressure;
+	u32             max_id;
+	u32             x_max;
+	u32             y_max;
+	u32             lcd_x;
+	u32             lcd_y;
 };
 
-struct touch_operation_role
-{
-	u8		operation_mode;	// interrupt = 1 , polling = 0;
-	u8		key_type;		// none = 0, hard_touch_key = 1, virtual_key = 2
-	u8		report_mode;
-	u8		delta_pos_threshold;
-	u8		orientation;	// 0' = 0, 90' = 1, 180' = 2, 270' = 3
-	u32		report_period;	// ns
-	u32		booting_delay;	// ms
-	u32		reset_delay;	// ms
-	u8		suspend_pwr;
-	u8		resume_pwr;
-	int		jitter_filter_enable;	// enable = 1, disable = 0
-	int		jitter_curr_ratio;
-	int		accuracy_filter_enable;	// enable = 1, disable = 0
-	int		ghost_finger_solution_enable;
+struct touch_operation_role {
+	u8              operation_mode;	/* interrupt = 1 , polling = 0; */
+	u8              key_type;	/* none = 0, hard_touch_key = 1, virtual_key = 2 */
+	u8              report_mode;
+	u8              delta_pos_threshold;
+	u8              orientation;	/* 0' = 0, 90' = 1, 180' = 2, 270' = 3 */
+	u32             report_period;	/* ns */
+	u32             booting_delay;	/* ms */
+	u32             reset_delay;	/* ms */
+	u8              suspend_pwr;
+	u8              resume_pwr;
+	int             jitter_filter_enable;	/* enable = 1, disable = 0 */
+	int             jitter_curr_ratio;
+	int             accuracy_filter_enable;	/* enable = 1, disable = 0 */
 	unsigned long	irqflags;
 #ifdef CUST_G_TOUCH
 	int		show_touches;
@@ -95,16 +108,17 @@ struct touch_platform_data
 	struct touch_power_module*		pwr;
 };
 
-struct t_data
-{
-	u16	id;
-	u16	x_position;
-	u16	y_position;
-	u16	width_major;
-	u16	width_minor;
-	u16	width_orientation;
-	u16	pressure;
-	u8	status;
+struct t_data {
+	u16             state;
+	u16             tool_type;
+	u16             x_position;
+	u16             y_position;
+	u16		x_position_pre;
+	u16		y_position_pre;
+	u16             width_major;
+	u16             width_minor;
+	u16             width_orientation;
+	u16             pressure;
 };
 
 struct b_data
@@ -222,21 +236,38 @@ struct accuracy_filter_info {
 	struct accuracy_history_data	his_data;
 };
 
-struct touch_device_driver {
-	int		(*probe)		(struct i2c_client *client);
-#ifdef CUST_G_TOUCH
-	int		(*resolution)	(struct i2c_client *client);
+struct lge_touch_data {
+	void*                           h_touch;
+	atomic_t                        next_work;
+	atomic_t                        device_init;
+	u8                              work_sync_err_cnt;
+	u8                              ic_init_err_cnt;
+	u8                              charger_type;
+	volatile int                    curr_pwr_state;
+	struct i2c_client               *client;
+	struct input_dev                *input_dev;
+	struct hrtimer                  timer;
+	struct work_struct              work;
+	struct delayed_work             work_init;
+	struct delayed_work             work_touch_lock;
+	struct work_struct              work_fw_upgrade;
+	struct early_suspend            early_suspend;
+	struct touch_platform_data      *pdata;
+	struct touch_data               ts_data;
+	struct touch_fw_info            fw_info;
+	struct fw_upgrade_info          fw_upgrade;
+	struct section_info             st_info;
+	struct kobject                  lge_touch_kobj;
+	struct ghost_finger_ctrl        gf_ctrl;
+	struct jitter_filter_info       jitter_filter;
+	struct accuracy_filter_info     accuracy_filter;
+#ifdef CONFIG_TOUCHSCREEN_CHARGER_NOTIFY
+	struct power_supply             touch_psy;
+	struct work_struct              work_charger;
 #endif
-	void	(*remove)		(struct i2c_client *client);
-	int		(*init)			(struct i2c_client *client, struct touch_fw_info* info);
-	int		(*data)			(struct i2c_client *client, struct touch_data* data);
-	int		(*power)		(struct i2c_client *client, int power_ctrl);
-#ifdef CUST_G_TOUCH
-	int		(*ic_ctrl)		(struct i2c_client *client, u8 code, u32 value);
-#else
-	int		(*ic_ctrl)		(struct i2c_client *client, u8 code, u16 value);
+#ifdef CONFIG_DOUBLETAP_WAKE
+	struct double_tap_wake		dt_wake;
 #endif
-	int 	(*fw_upgrade)	(struct i2c_client *client, struct touch_fw_info* info);
 };
 
 enum{
@@ -417,8 +448,9 @@ enum{
 #define LGE_TOUCH_NAME		"lge_touch"
 
 /* Debug Mask setting */
-#define TOUCH_ERROR_PRINT   (1)
-//#define TOUCH_INFO_PRINT   	(1)
+#define TOUCH_DEBUG_PRINT	(1)
+#define TOUCH_ERROR_PRINT       (1)
+//#define TOUCH_INFO_PRINT        (1)
 
 #if defined(TOUCH_INFO_PRINT)
 #define TOUCH_INFO_MSG(fmt, args...) \

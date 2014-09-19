@@ -97,7 +97,7 @@ void sync_filesystems(int wait)
 }
 
 /*
- * sync everything.  Start out by waking pdflush, because that writes back
+ * sync everything.  Start out by waking flusher, because that writes back
  * all queues in parallel.
  */
 static void do_sync(void)
@@ -256,10 +256,12 @@ static int do_fsync(unsigned int fd, int datasync)
 	struct file *file;
 	int ret = -EBADF;
 
-	file = fget(fd);
+	int fput_needed;
+	file = fget_light(fd, &fput_needed);
+
 	if (file) {
 		ret = vfs_fsync(file, datasync);
-		fput(file);
+		fput_light(file, fput_needed);
 	}
 	return ret;
 }

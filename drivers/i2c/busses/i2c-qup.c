@@ -1240,10 +1240,9 @@ blsp_core_init:
 	 * then we reset the core before registering for interrupts.
 	 */
 
-	if (dev->pdata->src_clk_rate > 0)
-		clk_set_rate(dev->clk, dev->pdata->src_clk_rate);
-	else
-		dev->pdata->src_clk_rate = 19200000;
+	dev->pdata->src_clk_rate = 5400000;
+	clk_set_rate(dev->clk, dev->pdata->src_clk_rate);
+	dev_err(dev->dev, "HACK - src_clk_rate: %i\n", dev->pdata->src_clk_rate);
 
 	clk_prepare_enable(dev->clk);
 	clk_prepare_enable(dev->pclk);

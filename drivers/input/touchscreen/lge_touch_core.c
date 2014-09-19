@@ -630,11 +630,12 @@ int touch_i2c_read(struct i2c_client *client, u8 reg, int len, u8 *buf)
 	};
 
 	if (i2c_transfer(client->adapter, msgs, 2) < 0) {
-		if (printk_ratelimit())
-			TOUCH_ERR_MSG("transfer error\n");
-		return -EIO;
-	} else
-		return 0;
+			if (printk_ratelimit())
+					TOUCH_ERR_MSG("transfer error\n");
+			return -EIO;
+	} else {
+			return 0;
+	}
 }
 
 int touch_i2c_write(struct i2c_client *client, u8 reg, int len, u8 * buf)

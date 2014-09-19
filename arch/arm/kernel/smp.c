@@ -19,7 +19,6 @@
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/cpu.h>
-#include <linux/smp.h>
 #include <linux/seq_file.h>
 #include <linux/irq.h>
 #include <linux/percpu.h>
@@ -27,6 +26,7 @@
 #include <linux/completion.h>
 
 #include <linux/atomic.h>
+#include <asm/smp.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu.h>
 #include <asm/cputype.h>
@@ -42,6 +42,7 @@
 #include <asm/ptrace.h>
 #include <asm/localtimer.h>
 #include <asm/smp_plat.h>
+#include <asm/mach/arch.h>
 
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
@@ -62,7 +63,16 @@ enum ipi_msg_type {
 
 static DECLARE_COMPLETION(cpu_running);
 
+static struct smp_operations smp_ops;
+
+void __init smp_set_ops(struct smp_operations *ops)
+{
+	if (ops)
+		smp_ops = *ops;
+};
+
 int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
+
 {
 	int ret;
 
@@ -102,8 +112,60 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 	return ret;
 }
 
+/* platform specific SMP operations */
+void __attribute__((weak)) __init smp_init_cpus(void)
+{
+	if (smp_ops.smp_init_cpus)
+		smp_ops.smp_init_cpus();
+}
+
+void __attribute__((weak)) __init platform_smp_prepare_cpus(unsigned int max_cpus)
+{
+	if (smp_ops.smp_prepare_cpus)
+		smp_ops.smp_prepare_cpus(max_cpus);
+}
+
+void __attribute__((weak)) __cpuinit platform_secondary_init(unsigned int cpu)
+{
+	if (smp_ops.smp_secondary_init)
+		smp_ops.smp_secondary_init(cpu);
+}
+
+int __attribute__((weak)) __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	if (smp_ops.smp_boot_secondary)
+		return smp_ops.smp_boot_secondary(cpu, idle);
+	return -ENOSYS;
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 static void percpu_timer_stop(void);
+
+int __attribute__((weak)) platform_cpu_kill(unsigned int cpu)
+{
+	if (smp_ops.cpu_kill)
+		return smp_ops.cpu_kill(cpu);
+	return 1;
+}
+
+void __attribute__((weak)) platform_cpu_die(unsigned int cpu)
+{
+	if (smp_ops.cpu_die)
+		smp_ops.cpu_die(cpu);
+}
+
+int __attribute__((weak)) platform_cpu_disable(unsigned int cpu)
+{
+	if (smp_ops.cpu_disable)
+		return smp_ops.cpu_disable(cpu);
+
+	/*
+	* By default, allow disabling all CPUs except the first one,
+	* since this is special on a lot of platforms, e.g. because
+	* of clock tick interrupts.
+	*/
+	return cpu == 0 ? -EPERM : 0;
+}
 
 /*
  * __cpu_disable runs on the processor to be shutdown.
@@ -168,6 +230,13 @@ void __cpu_die(unsigned int cpu)
 	}
 	pr_debug("CPU%u: shutdown\n", cpu);
 
+	/*
+	 * platform_cpu_kill() is generally expected to do the powering off
+	 * and/or cutting of clocks to the dying CPU.  Optionally, this may
+	 * be done by the CPU which is dying in preference to supporting
+	 * this call, but that means there is _no_ synchronisation between
+	 * the requesting CPU and the dying CPU actually losing power.
+	 */
 	if (!platform_cpu_kill(cpu))
 		printk("CPU%u: unable to kill\n", cpu);
 }
@@ -187,14 +256,41 @@ void __ref cpu_die(void)
 	idle_task_exit();
 
 	local_irq_disable();
-	mb();
 
-	/* Tell __cpu_die() that this CPU is now safe to dispose of */
+	/*
+	 * Flush the data out of the L1 cache for this CPU.  This must be
+	 * before the completion to ensure that data is safely written out
+	 * before platform_cpu_kill() gets called - which may disable
+	 * *this* CPU and power down its cache.
+	 */
+	flush_cache_louis();
+
+	/*
+	 * Tell __cpu_die() that this CPU is now safe to dispose of.  Once
+	 * this returns, power and/or clocks can be removed at any point
+	 * from this CPU and its cache by platform_cpu_kill().
+	 */
 	complete(&cpu_died);
 
 	/*
-	 * actual CPU shutdown procedure is at least platform (if not
-	 * CPU) specific.
+	 * Ensure that the cache lines associated with that completion are
+	 * written out.  This covers the case where _this_ CPU is doing the
+	 * powering down, to ensure that the completion is visible to the
+	 * CPU waiting for this one.
+	 */
+	flush_cache_louis();
+
+	/*
+	 * The actual CPU shutdown procedure is at least platform (if not
+	 * CPU) specific.  This may remove power, or it may simply spin.
+	 *
+	 * Platforms are generally expected *NOT* to return from this call,
+	 * although there are some which do because they have no way to
+	 * power down the CPU.  These platforms are the _only_ reason we
+	 * have a return path which uses the fragment of assembly below.
+	 *
+	 * The return path should not be used for platforms which can
+	 * power off the CPU.
 	 */
 	platform_cpu_die(cpu);
 
@@ -608,6 +704,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 void smp_send_reschedule(int cpu)
 {
+	BUG_ON(cpu_is_offline(cpu));
 	smp_cross_call(cpumask_of(cpu), IPI_RESCHEDULE);
 }
 

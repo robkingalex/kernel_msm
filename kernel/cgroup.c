@@ -381,10 +381,19 @@ static void free_css_set_work(struct work_struct *work)
 		struct cgroup *cgrp = link->cgrp;
 		list_del(&link->cg_link_list);
 		list_del(&link->cgrp_link_list);
+
+		/*
+		 * We may not be holding cgroup_mutex, and if cgrp->count is
+		 * dropped to 0 the cgroup can be destroyed at any time, hence
+		 * rcu_read_lock is used to keep it alive.
+		 */
+		rcu_read_lock();
 		if (atomic_dec_and_test(&cgrp->count)) {
 			check_for_release(cgrp);
 			cgroup_wakeup_rmdir_waiter(cgrp);
 		}
+		rcu_read_unlock();
+
 		kfree(link);
 	}
 	write_unlock(&css_set_lock);
@@ -2133,6 +2142,7 @@ out_free_group_list:
 	return retval;
 }
 
+#ifndef CONFIG_ZRAM_FOR_ANDROID
 static int cgroup_allow_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 {
 	struct cgroup_subsys *ss;
@@ -2150,6 +2160,7 @@ static int cgroup_allow_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 
 	return 0;
 }
+#endif /* CONFIG_ZRAM_FOR_ANDROID */
 
 /*
  * Find the task_struct of the task to attach by vpid and pass it along to the
@@ -2159,7 +2170,9 @@ static int cgroup_allow_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 static int attach_task_by_pid(struct cgroup *cgrp, u64 pid, bool threadgroup)
 {
 	struct task_struct *tsk;
+#ifndef CONFIG_ZRAM_FOR_ANDROID
 	const struct cred *cred = current_cred(), *tcred;
+#endif /* CONFIG_ZRAM_FOR_ANDROID */
 	int ret;
 
 	if (!cgroup_lock_live_group(cgrp))
@@ -2174,6 +2187,7 @@ retry_find_task:
 			ret= -ESRCH;
 			goto out_unlock_cgroup;
 		}
+#ifndef CONFIG_ZRAM_FOR_ANDROID
 		/*
 		 * even if we're attaching all tasks in the thread group, we
 		 * only need to check permissions on one of them.
@@ -2195,6 +2209,7 @@ retry_find_task:
 				goto out_unlock_cgroup;
 			}
 		}
+#endif /* CONFIG_ZRAM_FOR_ANDROID */
 	} else
 		tsk = current;
 

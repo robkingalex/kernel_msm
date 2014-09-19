@@ -31,6 +31,7 @@ VREG_CONSUMERS(L2) = {
 	REGULATOR_SUPPLY("dsi_vdda",		"mipi_dsi.1"),
 	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.0"),
 	REGULATOR_SUPPLY("mipi_csi_vdd",	"msm_csid.1"), 
+	REGULATOR_SUPPLY("dsi_pll_vdda",        "mdp.0"),
 };
 VREG_CONSUMERS(L3) = {
 	REGULATOR_SUPPLY("8921_l3",		NULL),
@@ -252,6 +253,7 @@ VREG_CONSUMERS(LVS7) = {
 	REGULATOR_SUPPLY("pll_vdd",		"pil_riva"),
 	REGULATOR_SUPPLY("lvds_vdda",		"lvds.0"),
 	REGULATOR_SUPPLY("dsi1_vddio",		"mipi_dsi.1"),
+	REGULATOR_SUPPLY("dsi_pll_vddio",       "mdp.0"),
 	REGULATOR_SUPPLY("hdmi_vdda",		"hdmi_msm.0"),
 };
 VREG_CONSUMERS(NCP) = {
@@ -499,15 +501,15 @@ apq8064_gpio_regulator_pdata[] __devinitdata = {
 /* SAW regulator constraints */
 struct regulator_init_data msm8064_saw_regulator_pdata_8921_s5 =
 	/*	      ID  vreg_name	       min_uV   max_uV */
-	SAW_VREG_INIT(S5, "8921_s5",	       700000, 1300000);
+	SAW_VREG_INIT(S5, "8921_s5",	       600000, 1450000);
 struct regulator_init_data msm8064_saw_regulator_pdata_8921_s6 =
-	SAW_VREG_INIT(S6, "8921_s6",	       700000, 1300000);
+	SAW_VREG_INIT(S6, "8921_s6",	       600000, 1450000);
 
 struct regulator_init_data msm8064_saw_regulator_pdata_8821_s0 =
 	/*	      ID       vreg_name	min_uV  max_uV */
-	SAW_VREG_INIT(8821_S0, "8821_s0",       700000, 1300000);
+	SAW_VREG_INIT(8821_S0, "8821_s0",      600000, 1450000);
 struct regulator_init_data msm8064_saw_regulator_pdata_8821_s1 =
-	SAW_VREG_INIT(8821_S1, "8821_s1",       700000, 1300000);
+	SAW_VREG_INIT(8821_S1, "8821_s1",      600000, 1450000);
 
 /* PM8921 regulator constraints */
 struct pm8xxx_regulator_platform_data
@@ -535,7 +537,7 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 #endif
 	/*	ID a_on pd ss min_uV   max_uV   supply    sys_uA init_ip */
 	RPM_LDO(L1,  1, 1, 0, 1100000, 1100000, "8921_s4",     0,  1000),
-	RPM_LDO(L2,  0, 1, 0, 1200000, 1200000, "8921_s4",     0,     0),
+	RPM_LDO(L2,  0, 1, 0, 1000000, 1200000, "8921_s4",     0,     0),
 	/* HSUSB 3p3: max 3.5v */
 	RPM_LDO(L3,  0, 1, 0, 3075000, 3500000, NULL,          0,     0),
 	RPM_LDO(L4,  1, 1, 0, 1800000, 1800000, NULL,          0, 10000),
@@ -546,14 +548,14 @@ apq8064_rpm_regulator_init_data[] __devinitdata = {
 	RPM_LDO(L6,  0, 1, 0, 2950000, 2950000, NULL,          0,     0),
 #endif
 	RPM_LDO(L7,  0, 1, 0, 1850000, 2950000, NULL,          0,     0),
-	RPM_LDO(L8,  0, 1, 0, 2800000, 3000000, NULL,          0,     0),
+	RPM_LDO(L8,  0, 1, 0, 2000000, 3000000, NULL,          0,     0),
 	RPM_LDO(L9,  0, 1, 0, 3000000, 3000000, NULL,          0,     0),
 	RPM_LDO(L10, 0, 1, 0, 2900000, 2900000, NULL,          0,     0),
 	RPM_LDO(L11, 0, 1, 0, 2850000, 2850000, NULL,          0,     0),
 	RPM_LDO(L12, 0, 1, 0, 1200000, 1200000, "8921_s4",     0,     0),
 	RPM_LDO(L14, 0, 1, 0, 1800000, 1800000, NULL,          0,     0),
 	RPM_LDO(L15, 0, 1, 0, 3300000, 3300000, NULL,          0,    19),
-	RPM_LDO(L16, 0, 1, 0, 2800000, 2800000, NULL,          0,     0),
+	RPM_LDO(L16, 0, 1, 0, 2600000, 2600000, NULL,          0,     0),
 	RPM_LDO(L17, 0, 1, 0, 2800000, 2800000, NULL,          0,     0),
 #ifdef CONFIG_SLIMPORT_ANX7808
 	RPM_LDO(L18, 0, 1, 0, 1100000, 1100000, NULL,          0,     0),

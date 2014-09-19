@@ -104,6 +104,8 @@ static int msm_fb_detect_panel(const char *name)
 
 #ifdef CONFIG_LCD_KCAL
 struct kcal_data kcal_value;
+
+extern int g_kcal_min;
 #endif
 
 #ifdef CONFIG_UPDATE_LCDC_LUT
@@ -277,10 +279,33 @@ void __init apq8064_mdp_writeback(struct memtype_reserve* reserve_table)
 #ifdef CONFIG_LCD_KCAL
 int kcal_set_values(int kcal_r, int kcal_g, int kcal_b)
 {
-	kcal_value.red = kcal_r;
-	kcal_value.green = kcal_g;
-	kcal_value.blue = kcal_b;
+	if (kcal_r > 255 || kcal_r < 0) {
+		kcal_r = kcal_r < 0 ? 0 : kcal_r;
+		kcal_r = kcal_r > 255 ? 255 : kcal_r;
+	}
+	if (kcal_g > 255 || kcal_g < 0) {
+		kcal_g = kcal_g < 0 ? 0 : kcal_g;
+		kcal_g = kcal_g > 255 ? 255 : kcal_g;
+	}
+	if (kcal_b > 255 || kcal_b < 0) {
+		kcal_b = kcal_b < 0 ? 0 : kcal_b;
+		kcal_b = kcal_b > 255 ? 255 : kcal_b;
+	}
+
+	kcal_value.red = kcal_r < g_kcal_min ? g_kcal_min : kcal_r;
+	kcal_value.green = kcal_g < g_kcal_min ? g_kcal_min : kcal_g;
+	kcal_value.blue = kcal_b < g_kcal_min ? g_kcal_min : kcal_b;
+
+	if (kcal_r < g_kcal_min || kcal_g < g_kcal_min || kcal_b < g_kcal_min)
+		update_preset_lcdc_lut();
+
 	return 0;
+}
+
+/* motley - keep color alive after screen off/on */
+int kcal_keep_color_alive(void)
+{
+	return update_preset_lcdc_lut();
 }
 
 static int kcal_get_values(int *kcal_r, int *kcal_g, int *kcal_b)
@@ -288,6 +313,32 @@ static int kcal_get_values(int *kcal_r, int *kcal_g, int *kcal_b)
 	*kcal_r = kcal_value.red;
 	*kcal_g = kcal_value.green;
 	*kcal_b = kcal_value.blue;
+	return 0;
+}
+
+int kcal_set_min(int kcal_min)
+{
+	g_kcal_min = kcal_min;
+
+	if (g_kcal_min > 255)
+		g_kcal_min = 255;
+
+	if (g_kcal_min < 0)
+		g_kcal_min = 0;
+
+	if (g_kcal_min > kcal_value.red || g_kcal_min > kcal_value.green || g_kcal_min > kcal_value.blue) {
+		kcal_value.red = kcal_value.red < g_kcal_min ? g_kcal_min : kcal_value.red;
+		kcal_value.green = kcal_value.green < g_kcal_min ? g_kcal_min : kcal_value.green;
+		kcal_value.blue = kcal_value.blue < g_kcal_min ? g_kcal_min : kcal_value.blue;
+		update_preset_lcdc_lut();
+	}
+
+	return 0;
+}
+
+static int kcal_get_min(int *kcal_min)
+{
+	*kcal_min = g_kcal_min;
 	return 0;
 }
 
@@ -299,7 +350,9 @@ static int kcal_refresh_values(void)
 static struct kcal_platform_data kcal_pdata = {
 	.set_values = kcal_set_values,
 	.get_values = kcal_get_values,
-	.refresh_display = kcal_refresh_values
+	.refresh_display = kcal_refresh_values,
+	.set_min = kcal_set_min,
+	.get_min = kcal_get_min
 };
 
 static struct platform_device kcal_platrom_device = {
@@ -445,16 +498,20 @@ static int mipi_dsi_panel_power(int on)
 			return -ENODEV;
 		}
 
-		rc = regulator_set_voltage(reg_l8, 3000000, 3000000);
+		rc = regulator_set_voltage(reg_l8, 2000000, 2000000);
 		if (rc) {
 			pr_err("set_voltage l8 failed, rc=%d\n", rc);
 			return -EINVAL;
+		} else {
+			pr_err("HACK - set_voltage l8 succeed\n");	
 		}
 
 		rc = regulator_set_voltage(reg_l2, 1200000, 1200000);
 		if (rc) {
 			pr_err("set_voltage l2 failed, rc=%d\n", rc);
 			return -EINVAL;
+		} else {
+			pr_err("HACK - set_voltage l2 succeed\n");	
 		}
 
 		dsi_power_on = true;

@@ -251,8 +251,11 @@ static int poll_idle(struct cpuidle_device *dev,
 
 	t1 = ktime_get();
 	local_irq_enable();
-	while (!need_resched())
-		cpu_relax();
+	if (!current_set_polling_and_test()) {
+		while (!need_resched())
+			cpu_relax();
+	}
+	current_clr_polling();
 
 	t2 = ktime_get();
 	diff = ktime_to_us(ktime_sub(t2, t1));
@@ -521,10 +524,12 @@ EXPORT_SYMBOL_GPL(cpuidle_register);
 
 #ifdef CONFIG_SMP
 
+#if 0
 static void smp_callback(void *v)
 {
 	/* we already woke the CPU up, nothing more to do */
 }
+#endif
 
 /*
  * This function gets called when a part of the kernel has a new latency
@@ -535,7 +540,15 @@ static void smp_callback(void *v)
 static int cpuidle_latency_notify(struct notifier_block *b,
 		unsigned long l, void *v)
 {
+#if 0
+	/* when drivers request new latency requirement, it does not necessary
+	 * to immediately wake up another cpu by sending cross-cpu IPI, we can
+	 * consider the new latency to be taken into effect after next wakeup
+	 * from idle, this can save the unnecessary wakeup cost, and reduce the
+	 * risk that drivers may request latency in irq disabled context.
+	 */
 	smp_call_function(smp_callback, NULL, 1);
+#endif
 	return NOTIFY_OK;
 }
 

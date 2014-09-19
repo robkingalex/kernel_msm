@@ -2311,7 +2311,10 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	    cmd == IP_VS_SO_SET_STOPDAEMON) {
 		struct ip_vs_daemon_user *dm = (struct ip_vs_daemon_user *)arg;
 
-		mutex_lock(&ipvs->sync_mutex);
+		if (mutex_lock_interruptible(&ipvs->sync_mutex)) {
+			ret = -ERESTARTSYS;
+			goto out_dec;
+		}
 		if (cmd == IP_VS_SO_SET_STARTDAEMON)
 			ret = start_sync_thread(net, dm->state, dm->mcast_ifn,
 						dm->syncid);
@@ -2321,7 +2324,11 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 		goto out_dec;
 	}
 
-	mutex_lock(&__ip_vs_mutex);
+	if (mutex_lock_interruptible(&__ip_vs_mutex)) {
+		ret = -ERESTARTSYS;
+		goto out_dec;
+	}
+
 	if (cmd == IP_VS_SO_SET_FLUSH) {
 		/* Flush the virtual service */
 		ret = ip_vs_flush(net);
@@ -2596,7 +2603,9 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		struct ip_vs_daemon_user d[2];
 
 		memset(&d, 0, sizeof(d));
-		mutex_lock(&ipvs->sync_mutex);
+		if (mutex_lock_interruptible(&ipvs->sync_mutex))
+			return -ERESTARTSYS;
+
 		if (ipvs->sync_state & IP_VS_STATE_MASTER) {
 			d[0].state = IP_VS_STATE_MASTER;
 			strlcpy(d[0].mcast_ifn, ipvs->master_mcast_ifn,
@@ -2615,7 +2624,9 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		return ret;
 	}
 
-	mutex_lock(&__ip_vs_mutex);
+	if (mutex_lock_interruptible(&__ip_vs_mutex))
+		return -ERESTARTSYS;
+
 	switch (cmd) {
 	case IP_VS_SO_GET_VERSION:
 	{

@@ -124,7 +124,19 @@
 #define PR_SET_CHILD_SUBREAPER 36
 #define PR_GET_CHILD_SUBREAPER 37
 
+/* Sets the timerslack for arbitrary threads
+ * arg2 slack value, 0 means "use default"
+ * arg3 pid of the thread whose timer slack needs to be set
+ */
+#define PR_SET_TIMERSLACK_PID 41
+
 #define PR_SET_VMA		0x53564d41
 # define PR_SET_VMA_ANON_NAME		0
+
+ /*
+ * Get effective timerslack value for the process.
+ * It can be higher than PR_GET_TIMERSLACK.
+ */
+#define PR_GET_EFFECTIVE_TIMERSLACK 38
 
 #endif /* _LINUX_PRCTL_H */

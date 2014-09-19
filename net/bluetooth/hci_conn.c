@@ -385,13 +385,27 @@ void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __u8 rand[8],
 	memset(&cp, 0, sizeof(cp));
 
 	cp.handle = cpu_to_le16(conn->handle);
-	memcpy(cp.ltk, ltk, sizeof(cp.ltk));
+	memcpy(cp.ltk, ltk, sizeof(*ltk));
 	cp.ediv = ediv;
 	memcpy(cp.rand, rand, sizeof(cp.rand));
 
 	hci_send_cmd(hdev, HCI_OP_LE_START_ENC, sizeof(cp), &cp);
 }
 EXPORT_SYMBOL(hci_le_start_enc);
+
+void hci_le_ltk_neg_reply(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct hci_cp_le_ltk_neg_reply cp;
+
+	BT_DBG("%p", conn);
+
+	memset(&cp, 0, sizeof(cp));
+
+	cp.handle = cpu_to_le16(conn->handle);
+
+	hci_send_cmd(hdev, HCI_OP_LE_LTK_NEG_REPLY, sizeof(cp), &cp);
+}
 
 /* Device _must_ be locked */
 void hci_sco_setup(struct hci_conn *conn, __u8 status)
@@ -1071,7 +1085,7 @@ static inline void hci_conn_start_rssi_timer(struct hci_conn *conn,
 	BT_DBG("conn %p, pending %d", conn,
 			delayed_work_pending(&conn->rssi_update_work));
 	if (!delayed_work_pending(&conn->rssi_update_work)) {
-		queue_delayed_work(hdev->workqueue, &conn->rssi_update_work,
+		mod_delayed_work(hdev->workqueue, &conn->rssi_update_work,
 				msecs_to_jiffies(interval));
 	}
 }

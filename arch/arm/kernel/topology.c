@@ -18,7 +18,6 @@
 #include <linux/percpu.h>
 #include <linux/node.h>
 #include <linux/nodemask.h>
-#include <linux/of.h>
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/cpuset.h>
@@ -37,57 +36,22 @@
 #define MPIDR_SMP_BITMASK (0x3 << 30)
 #define MPIDR_SMP_VALUE (0x2 << 30)
 
-		/* Save min capacity of the system */
-		if (capacity < min_capacity)
-			min_capacity = capacity;
-
-		/* Save max capacity of the system */
-		if (capacity > max_capacity)
-			max_capacity = capacity;
-
-		cpu_capacity(cpu) = capacity;
-	}
-
-	/* If min and max capacities are equals, we bypass the update of the
-	 * cpu_scale because all CPUs have the same capacity. Otherwise, we
-	 * compute a middle_capacity factor that will ensure that the capacity
-	 * of an 'average' CPU of the system will be as close as possible to
-	 * SCHED_POWER_SCALE, which is the default value, but with the
-	 * constraint explained near table_efficiency[].
-	 */
-	if (4*max_capacity < (3*(max_capacity + min_capacity)))
-		middle_capacity = (min_capacity + max_capacity)
-				>> (SCHED_POWER_SHIFT+1);
-	else
-		middle_capacity = ((max_capacity / 3)
-				>> (SCHED_POWER_SHIFT-1)) + 1;
-
-}
+#define MPIDR_MT_BITMASK (0x1 << 24)
 
 /*
- * Look for a customed capacity of a CPU in the cpu_capacity table during the
- * boot. The update of all CPUs is in O(n^2) for heteregeneous system but the
- * function returns directly for SMP system.
+ * These masks reflect the current use of the affinity levels.
+ * The affinity level can be up to 16 bits according to ARM ARM
  */
-void update_cpu_power(unsigned int cpu)
-{
-	if (!cpu_capacity(cpu))
-		return;
 
-	set_power_scale(cpu, cpu_capacity(cpu) / middle_capacity);
+#define MPIDR_LEVEL0_MASK 0x3
+#define MPIDR_LEVEL0_SHIFT 0
 
-	printk(KERN_INFO "CPU%u: update cpu_power %lu\n",
-		cpu, arch_scale_freq_power(NULL, cpu));
-}
+#define MPIDR_LEVEL1_MASK 0xF
+#define MPIDR_LEVEL1_SHIFT 8
 
-#else
-static inline void parse_dt_topology(void) {}
-static inline void update_cpu_power(unsigned int cpuid) {}
-#endif
+#define MPIDR_LEVEL2_MASK 0xFF
+#define MPIDR_LEVEL2_SHIFT 16
 
- /*
- * cpu topology table
- */
 struct cputopo_arm cpu_topology[NR_CPUS];
 EXPORT_SYMBOL_GPL(cpu_topology);
 
@@ -154,32 +118,6 @@ int arch_sd_sibling_asym_packing(void)
 const struct cpumask *cpu_coregroup_mask(int cpu)
 {
 	return &cpu_topology[cpu].core_sibling;
-}
-
-void update_siblings_masks(unsigned int cpuid)
-{
-	struct cputopo_arm *cpu_topo, *cpuid_topo = &cpu_topology[cpuid];
-	int cpu;
-
-	/* update core and thread sibling masks */
-	for_each_possible_cpu(cpu) {
-		cpu_topo = &cpu_topology[cpu];
-
-		if (cpuid_topo->socket_id != cpu_topo->socket_id)
-			continue;
-
-		cpumask_set_cpu(cpuid, &cpu_topo->core_sibling);
-		if (cpu != cpuid)
-			cpumask_set_cpu(cpu, &cpuid_topo->core_sibling);
-
-		if (cpuid_topo->core_id != cpu_topo->core_id)
-			continue;
-
-		cpumask_set_cpu(cpuid, &cpu_topo->thread_sibling);
-		if (cpu != cpuid)
-			cpumask_set_cpu(cpu, &cpuid_topo->thread_sibling);
-	}
-	smp_wmb();
 }
 
 /*
@@ -338,14 +276,19 @@ void store_cpu_topology(unsigned int cpuid)
 
 		if (mpidr & MPIDR_MT_BITMASK) {
 			/* core performance interdependency */
-			cpuid_topo->thread_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-			cpuid_topo->core_id = MPIDR_AFFINITY_LEVEL(mpidr, 1);
-			cpuid_topo->socket_id = MPIDR_AFFINITY_LEVEL(mpidr, 2);
+			cpuid_topo->thread_id = (mpidr >> MPIDR_LEVEL0_SHIFT)
+				& MPIDR_LEVEL0_MASK;
+			cpuid_topo->core_id = (mpidr >> MPIDR_LEVEL1_SHIFT)
+				& MPIDR_LEVEL1_MASK;
+			cpuid_topo->socket_id = (mpidr >> MPIDR_LEVEL2_SHIFT)
+				& MPIDR_LEVEL2_MASK;
 		} else {
 			/* largely independent cores */
 			cpuid_topo->thread_id = -1;
-			cpuid_topo->core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-			cpuid_topo->socket_id = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+			cpuid_topo->core_id = (mpidr >> MPIDR_LEVEL0_SHIFT)
+				& MPIDR_LEVEL0_MASK;
+			cpuid_topo->socket_id = (mpidr >> MPIDR_LEVEL1_SHIFT)
+				& MPIDR_LEVEL1_MASK;
 		}
 
 		cpuid_topo->id = read_cpuid_id() & ARM_FAMILY_MASK;
@@ -400,11 +343,11 @@ int arch_update_cpu_topology(void)
  * init_cpu_topology is called at boot when only one cpu is running
  * which prevent simultaneous write access to cpu_topology array
  */
-void __init init_cpu_topology(void)
+void init_cpu_topology(void)
 {
 	unsigned int cpu;
 
-	/* init core mask and power*/
+	/* init core mask */
 	for_each_possible_cpu(cpu) {
 		struct cputopo_arm *cpu_topo = &(cpu_topology[cpu]);
 
@@ -418,8 +361,6 @@ void __init init_cpu_topology(void)
 		per_cpu(cpu_scale, cpu) = SCHED_POWER_SCALE;
 	}
 	smp_wmb();
-
-	parse_dt_topology();
 }
 
 /*

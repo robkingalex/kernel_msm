@@ -34,37 +34,11 @@ const char *const pm_states[PM_SUSPEND_MAX] = {
 #ifdef CONFIG_EARLYSUSPEND
 	[PM_SUSPEND_ON]		= "on",
 #endif
-	[PM_SUSPEND_FREEZE]	= "freeze",
 	[PM_SUSPEND_STANDBY]	= "standby",
 	[PM_SUSPEND_MEM]	= "mem",
 };
 
 static const struct platform_suspend_ops *suspend_ops;
-
-static bool need_suspend_ops(suspend_state_t state)
-{
-	return !!(state > PM_SUSPEND_FREEZE);
-}
-
-static DECLARE_WAIT_QUEUE_HEAD(suspend_freeze_wait_head);
-static bool suspend_freeze_wake;
-
-static void freeze_begin(void)
-{
-	suspend_freeze_wake = false;
-}
-
-static void freeze_enter(void)
-{
-	wait_event(suspend_freeze_wait_head, suspend_freeze_wake);
-}
-
-void freeze_wake(void)
-{
-	suspend_freeze_wake = true;
-	wake_up(&suspend_freeze_wait_head);
-}
-EXPORT_SYMBOL_GPL(freeze_wake);
 
 /**
  * suspend_set_ops - Set the global suspend method table.
@@ -80,11 +54,8 @@ EXPORT_SYMBOL_GPL(suspend_set_ops);
 
 bool valid_state(suspend_state_t state)
 {
-	if (state == PM_SUSPEND_FREEZE)
-		return true;
 	/*
-	 * PM_SUSPEND_STANDBY and PM_SUSPEND_MEMORY states need lowlevel
-	 * support and need to be valid to the lowlevel
+	 * All states need lowlevel support and need to be valid to the lowlevel
 	 * implementation, no valid callback implies that none are valid.
 	 */
 	return suspend_ops && suspend_ops->valid && suspend_ops->valid(state);
@@ -186,17 +157,6 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		error = suspend_ops->prepare_late();
 		if (error)
 			goto Platform_wake;
-	}
-
-	/*
-	 * PM_SUSPEND_FREEZE equals
-	 * frozen processes + suspended devices + idle processors.
-	 * Thus we should invoke freeze_enter() soon after
-	 * all the devices are suspended.
-	 */
-	if (state == PM_SUSPEND_FREEZE) {
-		freeze_enter();
-		goto Platform_wake;
 	}
 
 	if (suspend_test(TEST_PLATFORM))
@@ -322,15 +282,9 @@ static int enter_state(suspend_state_t state)
 	if (!mutex_trylock(&pm_mutex))
 		return -EBUSY;
 
-	if (state == PM_SUSPEND_FREEZE)
-		freeze_begin();
-
-	printk(KERN_INFO "PM: Syncing filesystems ... ");
-	sys_sync();
-	printk("done.\n");
-
+	suspend_sys_sync_queue();
 	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
-	error = suspend_prepare(state);
+	error = suspend_prepare();
 	if (error)
 		goto Unlock;
 

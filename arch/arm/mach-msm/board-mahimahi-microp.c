@@ -34,7 +34,9 @@
 #include <linux/wakelock.h>
 #include <asm/mach-types.h>
 #include <mach/htc_pwrsink.h>
-#include <linux/earlysuspend.h>
+#ifdef CONFIG_POWERSUSPEND
+#include <linux/powersuspend.h>
+#endif
 #include <linux/bma150.h>
 #include <linux/lightsensor.h>
 #include <asm/mach/mmc.h>
@@ -259,7 +261,7 @@ struct microp_i2c_client_data {
 	struct microp_i2c_work work;
 	struct delayed_work hpin_debounce_work;
 	struct delayed_work ls_read_work;
-	struct early_suspend early_suspend;
+	struct power_suspend early_suspend;
 	uint8_t enable_early_suspend;
 	uint8_t enable_reset_button;
 	int microp_is_suspend;
@@ -1859,8 +1861,8 @@ exit:
 	return ret;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-void microp_early_suspend(struct early_suspend *h)
+#ifdef CONFIG_POWERSUSPEND
+void microp_early_suspend(struct power_suspend *h)
 {
 	struct microp_i2c_client_data *cdata;
 	struct i2c_client *client = private_microp_client;
@@ -1888,7 +1890,7 @@ void microp_early_suspend(struct early_suspend *h)
 	}
 }
 
-void microp_early_resume(struct early_suspend *h)
+void microp_early_resume(struct power_suspend *h)
 {
 	struct i2c_client *client = private_microp_client;
 	struct microp_i2c_client_data *cdata;
@@ -2099,13 +2101,13 @@ static int microp_i2c_probe(struct i2c_client *client,
 		goto err_intr;
 	}
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	if (cdata->enable_early_suspend) {
-		cdata->early_suspend.level =
-				EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+		/*cdata->early_suspend.level =
+				EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;*/
 		cdata->early_suspend.suspend = microp_early_suspend;
 		cdata->early_suspend.resume = microp_early_resume;
-		register_early_suspend(&cdata->early_suspend);
+		register_power_suspend(&cdata->early_suspend);
 	}
 #endif
 
@@ -2170,9 +2172,9 @@ static int __devexit microp_i2c_remove(struct i2c_client *client)
 		cancel_work_sync(&ldata->brightness_work);
 	}
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	if (cdata->enable_early_suspend) {
-		unregister_early_suspend(&cdata->early_suspend);
+		unregister_power_suspend(&cdata->early_suspend);
 	}
 #endif
 

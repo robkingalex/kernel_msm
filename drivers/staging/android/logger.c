@@ -31,8 +31,8 @@
 #include "logger.h"
 #ifdef CONFIG_LCD_NOTIFY
 #include <linux/lcd_notify.h>
-#elif defined(CONFIG_EARLYSUSPEND)
-#include <linux/earlysuspend.h>
+#elif defined(CONFIG_POWERSUSPEND)
+#include <linux/powersuspend.h>
 #endif
 #include <asm/ioctls.h>
 
@@ -40,7 +40,7 @@
 #define CONFIG_LOGCAT_SIZE 256
 #endif
 
-#if defined(CONFIG_LCD_NOTIFY) || defined(CONFIG_EARLYSUSPEND)
+#if defined(CONFIG_LCD_NOTIFY) || defined(CONFIG_POWERSUSPEND)
 /*
  * 0 - Enabled, 1 - Auto Suspend, 2 - Disabled
  */
@@ -480,11 +480,11 @@ static ssize_t do_write_log_from_user(struct logger_log *log,
 	return count;
 }
 
-#if defined(CONFIG_LCD_NOTIFY) || defined(CONFIG_EARLYSUSPEND)
+#if defined(CONFIG_LCD_NOTIFY) || defined(CONFIG_POWERSUSPEND)
 #ifdef CONFIG_LCD_NOTIFY
 static void log_suspend(void)
-#elif defined(CONFIG_EARLYSUSPEND)
-static void log_suspend(struct early_suspend *handler)
+#elif defined(CONFIG_POWERSUSPEND)
+static void log_suspend(struct power_suspend *handler)
 #endif
 {
 	if (log_mode == 1)
@@ -493,8 +493,8 @@ static void log_suspend(struct early_suspend *handler)
 
 #ifdef CONFIG_LCD_NOTIFY
 static void log_resume(void)
-#elif defined(CONFIG_EARLYSUSPEND)
-static void log_resume(struct early_suspend *handler)
+#elif defined(CONFIG_POWERSUSPEND)
+static void log_resume(struct power_suspend *handler)
 #endif
 {
 	log_enabled = 1;
@@ -517,8 +517,8 @@ static int lcd_notifier_callback(struct notifier_block *this,
 
 	return NOTIFY_OK;
 }
-#elif defined(CONFIG_EARLYSUSPEND)
-static struct early_suspend log_early_suspend = {
+#elif defined(CONFIG_POWERSUSPEND)
+static struct power_suspend log_power_suspend = {
 	.suspend = log_suspend,
 	.resume = log_resume,
 };
@@ -538,7 +538,7 @@ static ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct logger_entry header;
 	struct timespec now;
 
-#if defined(CONFIG_LCD_NOTIFY) || defined(CONFIG_EARLYSUSPEND)
+#if defined(CONFIG_LCD_NOTIFY) || defined(CONFIG_POWERSUSPEND)
 	if (!log_enabled || log_mode == 2)
 		return 0;
 #endif
@@ -888,8 +888,8 @@ static int __init logger_init(void)
                 pr_err("logger: Failed to register LCD notifier callback\n");
 		goto out;
 	}
-#elif defined(CONFIG_EARLYSUSPEND)
-	register_early_suspend(&log_early_suspend);
+#elif defined(CONFIG_POWERSUSPEND)
+	register_power_suspend(&log_power_suspend);
 #endif
 
 	ret = create_log(LOGGER_LOG_MAIN, CONFIG_LOGCAT_SIZE*1024);
@@ -927,8 +927,8 @@ static void __exit logger_exit(void)
 #ifdef CONFIG_LCD_NOTIFY
 	lcd_unregister_client(&notif);
 	notif.notifier_call = NULL;
-#elif defined(CONFIG_EARLYSUSPEND)
-	unregister_early_suspend(&log_early_suspend);
+#elif defined(CONFIG_POWERSUSPEND)
+	unregister_power_suspend(&log_power_suspend);
 #endif
 }
 

@@ -337,7 +337,11 @@ static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	char *s = buf;
 #ifdef CONFIG_SUSPEND
-	int i;
+	suspend_state_t i;
+
+	for (i = PM_SUSPEND_MIN; i < PM_SUSPEND_MAX; i++)
+		if (valid_state(i))
+			s += sprintf(s,"%s ", pm_states[i].label);
 
 	for (i = 0; i < PM_SUSPEND_MAX; i++) {
 		if (pm_states[i] && valid_state(i))
@@ -380,7 +384,7 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 #ifdef CONFIG_SUSPEND
 	for (s = &pm_states[state]; state < PM_SUSPEND_MAX; s++, state++) {
-		if (*s && len == strlen(*s) && !strncmp(buf, *s, len)) {
+		if (len == strlen(s->label) && !strncmp(buf, s->label, len)) {
 #ifdef CONFIG_EARLYSUSPEND
 			if (state == PM_SUSPEND_ON || valid_state(state)) {
 				error = 0;

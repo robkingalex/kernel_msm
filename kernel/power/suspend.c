@@ -32,13 +32,47 @@
 
 const char *const pm_states[PM_SUSPEND_MAX] = {
 #ifdef CONFIG_EARLYSUSPEND
-	[PM_SUSPEND_ON]		= "on",
+	[PM_SUSPEND_ON]	= { "on", PM_SUSPEND_FREEZE },
 #endif
-	[PM_SUSPEND_STANDBY]	= "standby",
-	[PM_SUSPEND_MEM]	= "mem",
+	[PM_SUSPEND_FREEZE] = { "freeze", PM_SUSPEND_FREEZE },
+	[PM_SUSPEND_STANDBY] = { "standby", PM_SUSPEND_STANDBY },
+	[PM_SUSPEND_MEM] = { "mem", PM_SUSPEND_MEM },
 };
 
 static const struct platform_suspend_ops *suspend_ops;
+static const struct platform_freeze_ops *freeze_ops;
+
+static bool need_suspend_ops(suspend_state_t state)
+{
+	return state > PM_SUSPEND_FREEZE;
+}
+
+static DECLARE_WAIT_QUEUE_HEAD(suspend_freeze_wait_head);
+static bool suspend_freeze_wake;
+
+void freeze_set_ops(const struct platform_freeze_ops *ops)
+{
+	lock_system_sleep();
+	freeze_ops = ops;
+	unlock_system_sleep();
+}
+
+static void freeze_begin(void)
+{
+	suspend_freeze_wake = false;
+}
+
+static void freeze_enter(void)
+{
+	wait_event(suspend_freeze_wait_head, suspend_freeze_wake);
+}
+
+void freeze_wake(void)
+{
+	suspend_freeze_wake = true;
+	wake_up(&suspend_freeze_wait_head);
+}
+EXPORT_SYMBOL_GPL(freeze_wake);
 
 /**
  * suspend_set_ops - Set the global suspend method table.
@@ -54,8 +88,23 @@ EXPORT_SYMBOL_GPL(suspend_set_ops);
 
 bool valid_state(suspend_state_t state)
 {
+	if (state == PM_SUSPEND_FREEZE) {
+#ifdef CONFIG_PM_DEBUG
+		if (pm_test_level != TEST_NONE &&
+		    pm_test_level != TEST_FREEZER &&
+		    pm_test_level != TEST_DEVICES &&
+		    pm_test_level != TEST_PLATFORM) {
+			printk(KERN_WARNING "Unsupported pm_test mode for "
+					"freeze state, please choose "
+					"none/freezer/devices/platform.\n");
+			return false;
+		}
+#endif
+			return true;
+	}
 	/*
-	 * All states need lowlevel support and need to be valid to the lowlevel
+	 * PM_SUSPEND_STANDBY and PM_SUSPEND_MEMORY states need lowlevel
+	 * support and need to be valid to the lowlevel
 	 * implementation, no valid callback implies that none are valid.
 	 */
 	return suspend_ops && suspend_ops->valid && suspend_ops->valid(state);

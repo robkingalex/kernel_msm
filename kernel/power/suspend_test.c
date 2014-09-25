@@ -166,7 +166,7 @@ static int __init test_suspend(void)
 	if (test_state == PM_SUSPEND_ON)
 		goto done;
 	if (!valid_state(test_state)) {
-		printk(warn_bad_state, pm_states[test_state]);
+		printk(warn_bad_state, pm_states[test_state].label);
 		goto done;
 	}
 

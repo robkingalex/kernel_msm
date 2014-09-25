@@ -349,12 +349,7 @@ static int enter_state(suspend_state_t state)
 	if (!mutex_trylock(&pm_mutex))
 		return -EBUSY;
 
-	if (state == PM_SUSPEND_FREEZE)
-		freeze_begin();
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	suspend_sys_sync_queue();
-
+	sys_sync();
 	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
 	error = suspend_prepare();
 	if (error)

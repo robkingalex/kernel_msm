@@ -354,14 +354,9 @@ static int enter_state(suspend_state_t state)
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	suspend_sys_sync_queue();
-#else
-	printk(KERN_INFO "PM: Syncing filesystems ... ");
-	sys_sync();
-	printk("done.\n");
-#endif
 
-	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state].label);
-	error = suspend_prepare(state);
+	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
+	error = suspend_prepare();
 	if (error)
 		goto Unlock;
 

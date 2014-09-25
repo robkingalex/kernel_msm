@@ -40,9 +40,7 @@
 #include <linux/switch.h>
 #include <linux/msm_mdp.h>
 
-#ifdef CONFIG_POWERSUSPEND
 #include <linux/powersuspend.h>
-#endif
 
 #include "msm_fb_panel.h"
 #include "mdp.h"
@@ -170,7 +168,6 @@ struct msm_fb_data_type {
 #ifdef CONFIG_FB_MSM_MDDI
 	struct power_suspend mddi_early_suspend;
 	struct power_suspend mddi_ext_early_suspend;
-#endif
 #endif
 #endif
 	u32 mdp_fb_page_protection;

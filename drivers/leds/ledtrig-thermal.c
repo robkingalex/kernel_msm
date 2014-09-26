@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/msm_tsens.h>
 #include <linux/workqueue.h>
-#include <linux/earlysuspend.h>
+#include <linux/powersuspend.h>
 #include <linux/leds.h>
 #include "leds.h"
 
@@ -36,12 +36,12 @@ struct thermal_trig_data {
 	int prev_brightness;
 	int active;
 	struct delayed_work work;
-	struct early_suspend suspend;
+	struct power_suspend suspend;
 };
 
 static struct led_trigger thermal_led_trigger;
 
-static void thermal_trig_early_suspend(struct early_suspend *h)
+static void thermal_trig_early_suspend(struct power_suspend *h)
 {
 	struct thermal_trig_data *thermal_data =
 		container_of(h, struct thermal_trig_data, suspend);
@@ -57,7 +57,7 @@ static void thermal_trig_early_suspend(struct early_suspend *h)
 	pr_debug("%s: led_br: %u\n", __func__, thermal_data->brightness);
 }
 
-static void thermal_trig_late_resume(struct early_suspend *h)
+static void thermal_trig_late_resume(struct power_suspend *h)
 {
 	struct thermal_trig_data *thermal_data =
 		container_of(h, struct thermal_trig_data, suspend);
@@ -87,8 +87,8 @@ static void thermal_trig_activate(struct led_classdev *led_cdev)
 
 	thermal_data->suspend.suspend = thermal_trig_early_suspend;
 	thermal_data->suspend.resume =  thermal_trig_late_resume;
-	thermal_data->suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
-	register_early_suspend(&thermal_data->suspend);
+	/*thermal_data->suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;*/
+	register_power_suspend(&thermal_data->suspend);
 
 	INIT_DELAYED_WORK(&thermal_data->work, check_temp);
 	schedule_delayed_work(&thermal_data->work, thermal_data->delay);
@@ -105,7 +105,7 @@ static void thermal_trig_deactivate(struct led_classdev *led_cdev)
 
 		thermal_data->active = 0;
 		led_set_brightness(led_cdev, LED_OFF);
-		unregister_early_suspend(&thermal_data->suspend);
+		unregister_power_suspend(&thermal_data->suspend);
 		kfree(thermal_data);
 	}
 

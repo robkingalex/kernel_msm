@@ -23,10 +23,8 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/earlysuspend.h>
 #include <linux/pm_runtime.h>
-#ifdef CONFIG_POWERSUSPEND
-#include <linux/powersuspend.h>
-#endif
 #include <linux/jiffies.h>
 #include <linux/sysdev.h>
 #include <linux/types.h>
@@ -104,9 +102,9 @@ static struct pointer_trace tr_data[MAX_TRACE];
 static int tr_last_index;
 #endif
 
-#if defined(CONFIG_POWERSUSPEND)
-static void touch_early_suspend(struct power_suspend *h);
-static void touch_late_resume(struct power_suspend *h);
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+static void touch_early_suspend(struct early_suspend *h);
+static void touch_late_resume(struct early_suspend *h);
 #endif
 
 /* set_touch_handle / get_touch_handle
@@ -2214,11 +2212,11 @@ static int touch_probe(struct i2c_client *client,
 
 	device_init_wakeup(&client->dev, 1);
 
-#if defined(CONFIG_POWERSUSPEND)
-	/*ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;*/
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	ts->early_suspend.suspend = touch_early_suspend;
 	ts->early_suspend.resume = touch_late_resume;
-	register_power_suspend(&ts->early_suspend);
+	register_early_suspend(&ts->early_suspend);
 #endif
 
 #ifdef CONFIG_TOUCH_WAKE
@@ -2273,9 +2271,7 @@ err_lge_touch_sysfs_init_and_add:
 err_lge_touch_sys_dev_register:
 	sysdev_class_unregister(&lge_touch_sys_class);
 err_lge_touch_sys_class_register:
-#ifdef CONFIG_POWERSUSPEND
-	unregister_power_suspend(&ts->early_suspend);
-#endif
+	unregister_early_suspend(&ts->early_suspend);
 	if (ts->pdata->role->operation_mode == INTERRUPT_MODE) {
 		gpio_free(ts->pdata->int_pin);
 		free_irq(ts->client->irq, ts);
@@ -2325,9 +2321,7 @@ static int touch_remove(struct i2c_client *client)
 	sysdev_unregister(&lge_touch_sys_device);
 	sysdev_class_unregister(&lge_touch_sys_class);
 
-#ifdef CONFIG_POWERSUSPEND
-	unregister_power_suspend(&ts->early_suspend);
-#endif
+	unregister_early_suspend(&ts->early_suspend);
 
 	if (ts->pdata->role->operation_mode == INTERRUPT_MODE) {
 		gpio_free(ts->pdata->int_pin);
@@ -2344,12 +2338,8 @@ static int touch_remove(struct i2c_client *client)
 	return 0;
 }
 
-#if defined(CONFIG_POWERSUSPEND)
-static void touch_early_suspend(struct power_suspend *h)
+static void touch_power_on(struct lge_touch_data *ts)
 {
-	struct lge_touch_data *ts =
-			container_of(h, struct lge_touch_data, early_suspend);
-
 	if (unlikely(touch_debug_mask & DEBUG_TRACE))
 		TOUCH_DEBUG_MSG("\n");
 
@@ -2438,7 +2428,8 @@ static void touch_power_off(struct lge_touch_data *ts)
 #endif
 }
 
-static void touch_late_resume(struct power_suspend *h)
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+static void touch_early_suspend(struct early_suspend *h)
 {
 	struct lge_touch_data *ts =
 			container_of(h, struct lge_touch_data, early_suspend);
@@ -2451,10 +2442,10 @@ static void touch_late_resume(struct power_suspend *h)
 	touch_power_off(ts);
 }
 
-static void touch_late_resume(struct power_suspend *h)
+static void touch_late_resume(struct early_suspend *h)
 {
 	struct lge_touch_data *ts =
-			container_of(h, struct lge_touch_data, power_suspend);
+			container_of(h, struct lge_touch_data, early_suspend);
 
 #ifdef CONFIG_TOUCH_WAKE
 	if (touchwake_is_enabled())
@@ -2588,4 +2579,5 @@ void touch_driver_unregister(void)
 	if (touch_wq)
 		destroy_workqueue(touch_wq);
 }
+
 

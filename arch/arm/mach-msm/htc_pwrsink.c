@@ -21,9 +21,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/debugfs.h>
-#ifdef CONFIG_POWERSUSPEND
-#include <linux/powersuspend.h>
-#endif
+#include <linux/earlysuspend.h>
 #include <mach/msm_smd.h>
 #include <mach/htc_pwrsink.h>
 
@@ -199,8 +197,7 @@ int htc_pwrsink_audio_path_set(unsigned path)
 }
 EXPORT_SYMBOL(htc_pwrsink_audio_path_set);
 
-#ifdef CONFIG_POWERSUSPEND
-void htc_pwrsink_suspend_early(struct power_suspend *h)
+void htc_pwrsink_suspend_early(struct early_suspend *h)
 {
 	htc_pwrsink_set(PWRSINK_SYSTEM_LOAD, 70);
 }
@@ -227,17 +224,16 @@ int htc_pwrsink_resume_early(struct platform_device *pdev)
 	return 0;
 }
 
-void htc_pwrsink_resume_late(struct power_suspend *h)
+void htc_pwrsink_resume_late(struct early_suspend *h)
 {
 	htc_pwrsink_set(PWRSINK_SYSTEM_LOAD, 100);
 }
 
-struct power_suspend htc_pwrsink_early_suspend = {
-	/*.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1,*/
+struct early_suspend htc_pwrsink_early_suspend = {
+	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1,
 	.suspend = htc_pwrsink_suspend_early,
 	.resume = htc_pwrsink_resume_late,
 };
-#endif
 
 static int __init htc_pwrsink_probe(struct platform_device *pdev)
 {
@@ -256,13 +252,11 @@ static int __init htc_pwrsink_probe(struct platform_device *pdev)
 
 	initialized = 1;
 
-#ifdef CONFIG_POWERSUSPEND
 	if (pdata->suspend_early)
 		htc_pwrsink_early_suspend.suspend = pdata->suspend_early;
 	if (pdata->resume_late)
 		htc_pwrsink_early_suspend.resume = pdata->resume_late;
-	register_power_suspend(&htc_pwrsink_early_suspend);
-#endif
+	register_early_suspend(&htc_pwrsink_early_suspend);
 
 	return 0;
 }

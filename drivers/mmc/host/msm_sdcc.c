@@ -4943,25 +4943,6 @@ store_enable_auto_cmd19(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t
-show_enable_auto_cmd21(struct device *dev, struct device_attribute *attr,
-		       char *buf)
-{
-	struct mmc_host *mmc = dev_get_drvdata(dev);
-	struct msmsdcc_host *host = mmc_priv(mmc);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", host->en_auto_cmd21);
-}
-
-static ssize_t
-store_enable_auto_cmd21(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
-{
-	set_auto_cmd_setting(dev, buf, false);
-
-	return count;
-}
-
 #ifdef CONFIG_POWERSUSPEND
 static void msmsdcc_early_suspend(struct power_suspend *h)
 {
@@ -6033,11 +6014,6 @@ msmsdcc_probe(struct platform_device *pdev)
 			(unsigned long)host);
 
 	mmc_add_host(mmc);
-
-	mmc->clk_scaling.up_threshold = 35;
-	mmc->clk_scaling.down_threshold = 5;
-	mmc->clk_scaling.polling_delay_ms = 100;
-	mmc->caps2 |= MMC_CAP2_CLK_SCALE;
 
 #ifdef CONFIG_POWERSUSPEND
 	host->early_suspend.suspend = msmsdcc_early_suspend;

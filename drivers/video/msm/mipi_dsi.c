@@ -34,14 +34,6 @@
 #include "mipi_dsi.h"
 #include "mdp.h"
 #include "mdp4.h"
-#ifdef CONFIG_LCD_NOTIFY
-#include <linux/lcd_notify.h>
-#endif
-#ifdef CONFIG_POWERSUSPEND
-#include <linux/powersuspend.h>
-#endif
-
-#define DSI_VIDEO_BASE	0xE0000
 
 u32 dsi_irq;
 u32 esc_byte_ratio;
@@ -137,26 +129,6 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	spin_unlock_bh(&dsi_clk_lock);
 
 	mipi_dsi_unprepare_clocks();
-	mipi_dsi_unprepare_ahb_clocks();
-
-#ifdef CONFIG_LCD_NOTIFY
-	lcd_notifier_call_chain(LCD_EVENT_ON_END, NULL);
-#endif
-
-#ifdef CONFIG_POWERSUSPEND
-	set_power_suspend_state_panel_hook(POWER_SUSPEND_INACTIVE);
-#endif
-
-	usleep(5000);
-
-	if (mipi_dsi_pdata && mipi_dsi_pdata->active_reset)
-		mipi_dsi_pdata->active_reset(0); /* low */
-
-	usleep(2000); /*1ms delay(minimum) required between reset low and AVDD off*/
-#if defined(CONFIG_SUPPORT_SECOND_POWER)
-	if (mipi_dsi_pdata && mipi_dsi_pdata->panel_power_save)
-		mipi_dsi_pdata->panel_power_save(0);
-#endif
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
 		mipi_dsi_pdata->dsi_power_save(0);
 
@@ -190,42 +162,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	fbi = mfd->fbi;
 	var = &fbi->var;
 	pinfo = &mfd->panel_info;
-
-	if (mipi_dsi_pdata && mipi_dsi_pdata->power_common)
-		mipi_dsi_pdata->power_common();
-
-#if defined(CONFIG_SUPPORT_SECOND_POWER)
-#if defined(CONFIG_FB_MSM_MIPI_RENESAS_TFT_VIDEO_FULL_HD_PT_PANEL)
-	if( is_booting == 1 )
-	{
-		is_booting = 0;
-#if defined(CONFIG_MACH_JACTIVE_ATT) || defined(CONFIG_MACH_JACTIVE_EUR)
-		usleep(5000);
-		if (mipi_dsi_pdata && mipi_dsi_pdata->active_reset)
-				mipi_dsi_pdata->active_reset(0); /* low */
-		usleep(2000);
-
-		if (mipi_dsi_pdata && mipi_dsi_pdata->panel_power_save)
-			mipi_dsi_pdata->panel_power_save(0);
-		msleep(10);
-#endif
-	}
-#endif
-
-	if (mipi_dsi_pdata && mipi_dsi_pdata->panel_power_save)
-		mipi_dsi_pdata->panel_power_save(1);
-#endif
-
-#ifdef CONFIG_LCD_NOTIFY
-	lcd_notifier_call_chain(LCD_EVENT_ON_START, NULL);
-#endif
-
-#ifdef CONFIG_POWERSUSPEND
-	set_power_suspend_state_panel_hook(POWER_SUSPEND_ACTIVE);
-#endif
-
-	if (system_rev == 6)
-		mdelay(500);
+	esc_byte_ratio = pinfo->mipi.esc_byte_ratio;
 
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
 		mipi_dsi_pdata->dsi_power_save(1);
@@ -707,3 +644,4 @@ static int __init mipi_dsi_driver_init(void)
 }
 
 module_init(mipi_dsi_driver_init);
+

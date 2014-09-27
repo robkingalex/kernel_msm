@@ -37,7 +37,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/list.h>
-#include <linux/earlysuspend.h>
+#include <linux/powersuspend.h>
 #include <linux/slab.h>
 #include <linux/msm_audio.h>
 #include <linux/memory_alloc.h>
@@ -89,9 +89,9 @@ struct buffer {
 	unsigned short mfield_sz; /*only useful for data has meta field */
 };
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 struct audamrwb_suspend_ctl {
-	struct early_suspend node;
+	struct power_suspend node;
 	struct audio *audio;
 };
 #endif
@@ -160,7 +160,7 @@ struct audio {
 	uint16_t dec_id;
 	uint32_t read_ptr_offset;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	struct audamrwb_suspend_ctl suspend_ctl;
 #endif
 
@@ -192,7 +192,7 @@ static void audamrwb_send_data(struct audio *audio, unsigned needed);
 static void audamrwb_config_hostpcm(struct audio *audio);
 static void audamrwb_buffer_refresh(struct audio *audio);
 static void audamrwb_dsp_event(void *private, unsigned id, uint16_t *msg);
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 static void audamrwb_post_event(struct audio *audio, int type,
 		union msm_audio_event_payload payload);
 #endif
@@ -1394,8 +1394,8 @@ static int audamrwb_release(struct inode *inode, struct file *file)
 	audamrwb_flush_pcm_buf(audio);
 	msm_adsp_put(audio->audplay);
 	audpp_adec_free(audio->dec_id);
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&audio->suspend_ctl.node);
+#ifdef CONFIG_POWERSUSPEND
+	unregister_power_suspend(&audio->suspend_ctl.node);
 #endif
 	audio->event_abort = 1;
 	wake_up(&audio->event_wait);
@@ -1416,7 +1416,7 @@ static int audamrwb_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 static void audamrwb_post_event(struct audio *audio, int type,
 		union msm_audio_event_payload payload)
 {
@@ -1446,7 +1446,7 @@ static void audamrwb_post_event(struct audio *audio, int type,
 	wake_up(&audio->event_wait);
 }
 
-static void audamrwb_suspend(struct early_suspend *h)
+static void audamrwb_suspend(struct power_suspend *h)
 {
 	struct audamrwb_suspend_ctl *ctl =
 		container_of(h, struct audamrwb_suspend_ctl, node);
@@ -1456,7 +1456,7 @@ static void audamrwb_suspend(struct early_suspend *h)
 	audamrwb_post_event(ctl->audio, AUDIO_EVENT_SUSPEND, payload);
 }
 
-static void audamrwb_resume(struct early_suspend *h)
+static void audamrwb_resume(struct power_suspend *h)
 {
 	struct audamrwb_suspend_ctl *ctl =
 		container_of(h, struct audamrwb_suspend_ctl, node);
@@ -1703,12 +1703,12 @@ static int audamrwb_open(struct inode *inode, struct file *file)
 	if (IS_ERR(audio->dentry))
 		MM_DBG("debugfs_create_file failed\n");
 #endif
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	audio->suspend_ctl.node.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
 	audio->suspend_ctl.node.resume = audamrwb_resume;
 	audio->suspend_ctl.node.suspend = audamrwb_suspend;
 	audio->suspend_ctl.audio = audio;
-	register_early_suspend(&audio->suspend_ctl.node);
+	register_power_suspend(&audio->suspend_ctl.node);
 #endif
 	for (i = 0; i < AUDAMRWB_EVENT_NUM; i++) {
 		e_node = kmalloc(sizeof(struct audamrwb_event), GFP_KERNEL);

@@ -234,6 +234,7 @@ void kgsl_cancel_events(struct kgsl_device *device,
 
 extern const struct dev_pm_ops kgsl_pm_ops;
 
+struct power_suspend;
 int kgsl_suspend_driver(struct platform_device *pdev, pm_message_t state);
 int kgsl_resume_driver(struct platform_device *pdev);
 

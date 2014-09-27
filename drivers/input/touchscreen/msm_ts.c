@@ -70,7 +70,7 @@ struct msm_ts {
 	unsigned int			pen_up_irq;
 
 #if defined(CONFIG_POWERSUSPEND)
-	struct power_suspend		early_suspend;
+	struct power_suspend		power_suspend;
 #endif
 	struct device			*dev;
 };
@@ -297,16 +297,16 @@ static struct dev_pm_ops msm_touchscreen_pm_ops = {
 #endif
 
 #ifdef CONFIG_POWERSUSPEND
-static void msm_ts_early_suspend(struct power_suspend *h)
+static void msm_ts_power_suspend(struct power_suspend *h)
 {
-	struct msm_ts *ts = container_of(h, struct msm_ts, early_suspend);
+	struct msm_ts *ts = container_of(h, struct msm_ts, power_suspend);
 
 	msm_ts_suspend(ts->dev);
 }
 
 static void msm_ts_late_resume(struct power_suspend *h)
 {
-	struct msm_ts *ts = container_of(h, struct msm_ts, early_suspend);
+	struct msm_ts *ts = container_of(h, struct msm_ts, power_suspend);
 
 	msm_ts_resume(ts->dev);
 }
@@ -430,11 +430,11 @@ static int __devinit msm_ts_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ts);
 
 #ifdef CONFIG_POWERSUSPEND
-	/*ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN +
+	/*ts->power_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN +
 						TSSC_SUSPEND_LEVEL;*/
-	ts->early_suspend.suspend = msm_ts_early_suspend;
-	ts->early_suspend.resume = msm_ts_late_resume;
-	register_power_suspend(&ts->early_suspend);
+	ts->power_suspend.suspend = msm_ts_power_suspend;
+	ts->power_suspend.resume = msm_ts_late_resume;
+	register_power_suspend(&ts->power_suspend);
 #endif
 
 	device_init_wakeup(&pdev->dev, pdata->can_wakeup);
@@ -477,7 +477,7 @@ static int __devexit msm_ts_remove(struct platform_device *pdev)
 	input_unregister_device(ts->input_dev);
 	iounmap(ts->tssc_base);
 #ifdef CONFIG_POWERSUSPEND
-	unregister_power_suspend(&ts->early_suspend);
+	unregister_power_suspend(&ts->power_suspend);
 #endif
 	platform_set_drvdata(pdev, NULL);
 	kfree(ts);

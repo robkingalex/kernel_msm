@@ -13,7 +13,7 @@
 #ifndef CODEC_UTILS_H
 #define CODEC_UTILS_H
 
-#include <linux/earlysuspend.h>
+#include <linux/powersuspend.h>
 
 #define ADRV_STATUS_AIO_INTF 0x00000001
 #define ADRV_STATUS_OBUF_GIVEN 0x00000002
@@ -43,9 +43,9 @@ struct buffer {
 };
 struct audio;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 struct audio_suspend_ctl {
-	struct early_suspend node;
+	struct power_suspend node;
 	struct audio *audio;
 };
 #endif
@@ -95,7 +95,7 @@ struct audio {
 	uint32_t read_ptr_offset;
 	int16_t source;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	struct audio_suspend_ctl suspend_ctl;
 #endif
 

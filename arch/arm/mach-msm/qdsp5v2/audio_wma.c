@@ -34,7 +34,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/list.h>
-#include <linux/earlysuspend.h>
+#include <linux/powersuspend.h>
 #include <linux/android_pmem.h>
 #include <linux/slab.h>
 #include <linux/msm_audio.h>
@@ -89,9 +89,9 @@ struct buffer {
 	unsigned short mfield_sz; /*only useful for data has meta field */
 };
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 struct audwma_suspend_ctl {
-	struct early_suspend node;
+	struct power_suspend node;
 	struct audio *audio;
 };
 #endif
@@ -163,7 +163,7 @@ struct audio {
 	uint32_t read_ptr_offset;
 	int16_t source;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	struct audwma_suspend_ctl suspend_ctl;
 #endif
 
@@ -199,7 +199,7 @@ static void audplay_send_data(struct audio *audio, unsigned needed);
 static void audplay_config_hostpcm(struct audio *audio);
 static void audplay_buffer_refresh(struct audio *audio);
 static void audio_dsp_event(void *private, unsigned id, uint16_t *msg);
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 static void audwma_post_event(struct audio *audio, int type,
 		union msm_audio_event_payload payload);
 #endif
@@ -1449,8 +1449,8 @@ static int audio_release(struct inode *inode, struct file *file)
 	audio_flush_pcm_buf(audio);
 	msm_adsp_put(audio->audplay);
 	audpp_adec_free(audio->dec_id);
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&audio->suspend_ctl.node);
+#ifdef CONFIG_POWERSUSPEND
+	unregister_power_suspend(&audio->suspend_ctl.node);
 #endif
 	audio->event_abort = 1;
 	wake_up(&audio->event_wait);
@@ -1470,7 +1470,7 @@ static int audio_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 static void audwma_post_event(struct audio *audio, int type,
 		union msm_audio_event_payload payload)
 {
@@ -1499,7 +1499,7 @@ static void audwma_post_event(struct audio *audio, int type,
 	wake_up(&audio->event_wait);
 }
 
-static void audwma_suspend(struct early_suspend *h)
+static void audwma_suspend(struct power_suspend *h)
 {
 	struct audwma_suspend_ctl *ctl =
 		container_of(h, struct audwma_suspend_ctl, node);
@@ -1509,7 +1509,7 @@ static void audwma_suspend(struct early_suspend *h)
 	audwma_post_event(ctl->audio, AUDIO_EVENT_SUSPEND, payload);
 }
 
-static void audwma_resume(struct early_suspend *h)
+static void audwma_resume(struct power_suspend *h)
 {
 	struct audwma_suspend_ctl *ctl =
 		container_of(h, struct audwma_suspend_ctl, node);
@@ -1745,12 +1745,12 @@ static int audio_open(struct inode *inode, struct file *file)
 	if (IS_ERR(audio->dentry))
 		MM_DBG("debugfs_create_file failed\n");
 #endif
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	audio->suspend_ctl.node.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
 	audio->suspend_ctl.node.resume = audwma_resume;
 	audio->suspend_ctl.node.suspend = audwma_suspend;
 	audio->suspend_ctl.audio = audio;
-	register_early_suspend(&audio->suspend_ctl.node);
+	register_power_suspend(&audio->suspend_ctl.node);
 #endif
 	for (i = 0; i < AUDWMA_EVENT_NUM; i++) {
 		e_node = kmalloc(sizeof(struct audwma_event), GFP_KERNEL);

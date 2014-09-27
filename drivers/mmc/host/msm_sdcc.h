@@ -25,7 +25,9 @@
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/wakelock.h>
-#include <linux/earlysuspend.h>
+#ifdef CONFIG_POWERSUSPEND
+#include <linux/powersuspend.h>
+#endif
 #include <linux/pm_qos.h>
 #include <mach/sps.h>
 
@@ -373,8 +375,8 @@ struct msmsdcc_host {
 	struct msmsdcc_sps_data sps;
 	struct msmsdcc_pio_data	pio;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct early_suspend early_suspend;
+#ifdef CONFIG_POWERSUSPEND
+	struct power_suspend early_suspend;
 	int polling_enabled;
 #endif
 

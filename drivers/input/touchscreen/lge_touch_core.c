@@ -23,8 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/earlysuspend.h>
-#include <linux/pm_runtime.h>
+#include <linux/powersuspend.h>
 #include <linux/jiffies.h>
 #include <linux/sysdev.h>
 #include <linux/types.h>
@@ -32,6 +31,7 @@
 #include <linux/version.h>
 #include <linux/atomic.h>
 #include <linux/gpio.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/input/lge_touch_core.h>
 
@@ -102,10 +102,8 @@ static struct pointer_trace tr_data[MAX_TRACE];
 static int tr_last_index;
 #endif
 
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-static void touch_early_suspend(struct early_suspend *h);
-static void touch_late_resume(struct early_suspend *h);
-#endif
+static void touch_power_suspend(struct power_suspend *h);
+static void touch_late_resume(struct power_suspend *h);
 
 /* set_touch_handle / get_touch_handle
  *
@@ -2209,20 +2207,14 @@ static int touch_probe(struct i2c_client *client,
 	ts->accuracy_filter.time_to_max_pressure = one_sec / 20;
 	ts->accuracy_filter.direction_count = one_sec / 6;
 	ts->accuracy_filter.touch_max_count = one_sec / 2;
-
 	device_init_wakeup(&client->dev, 1);
-
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	ts->early_suspend.suspend = touch_early_suspend;
-	ts->early_suspend.resume = touch_late_resume;
-	register_early_suspend(&ts->early_suspend);
-#endif
-
+	/*ts->power_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;*/
+	ts->power_suspend.suspend = touch_power_suspend;
+	ts->power_suspend.resume = touch_late_resume;
+	register_power_suspend(&ts->power_suspend);
 #ifdef CONFIG_TOUCH_WAKE
 	touchwake_data = ts;
 #endif
-
 #ifdef CONFIG_DOUBLETAP_WAKE
 	mutex_init(&ts->dt_wake.lock);
 	dt2w_enabled = 0;
@@ -2233,7 +2225,6 @@ static int touch_probe(struct i2c_client *client,
 	ts->dt_wake.max_interval = DTW_MAX_INTERVAL;
 	ts->dt_wake.lock_timeout = msecs_to_jiffies(DTW_LOCK_TIMEOUT);
 	wake_lock_init(&ts->dt_wake.wlock, WAKE_LOCK_SUSPEND, "dt_wake");
-
 	input_set_capability(ts->input_dev, EV_KEY, KEY_POWER);
 #endif
 	/* Register sysfs for making fixed communication path to framework layer */
@@ -2271,7 +2262,7 @@ err_lge_touch_sysfs_init_and_add:
 err_lge_touch_sys_dev_register:
 	sysdev_class_unregister(&lge_touch_sys_class);
 err_lge_touch_sys_class_register:
-	unregister_early_suspend(&ts->early_suspend);
+	unregister_power_suspend(&ts->power_suspend);
 	if (ts->pdata->role->operation_mode == INTERRUPT_MODE) {
 		gpio_free(ts->pdata->int_pin);
 		free_irq(ts->client->irq, ts);
@@ -2320,9 +2311,7 @@ static int touch_remove(struct i2c_client *client)
 	kobject_del(&ts->lge_touch_kobj);
 	sysdev_unregister(&lge_touch_sys_device);
 	sysdev_class_unregister(&lge_touch_sys_class);
-
-	unregister_early_suspend(&ts->early_suspend);
-
+	unregister_power_suspend(&ts->power_suspend);
 	if (ts->pdata->role->operation_mode == INTERRUPT_MODE) {
 		gpio_free(ts->pdata->int_pin);
 		free_irq(client->irq, ts);
@@ -2397,7 +2386,7 @@ static void touch_power_off(struct lge_touch_data *ts)
 	curr_resume_state = 0;
 	TOUCH_DEBUG_MSG("Power off. Resume state %u\n", curr_resume_state);
 	if (ts->fw_upgrade.is_downloading == UNDER_DOWNLOADING) {
-		TOUCH_INFO_MSG("early_suspend is not executed\n");
+		TOUCH_INFO_MSG("power_suspend is not executed\n");
 		return;
 	}
 #ifdef CONFIG_DOUBLETAP_WAKE
@@ -2428,11 +2417,11 @@ static void touch_power_off(struct lge_touch_data *ts)
 #endif
 }
 
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-static void touch_early_suspend(struct early_suspend *h)
+#if defined(CONFIG_POWERSUSPEND)
+static void touch_power_suspend(struct power_suspend *h)
 {
 	struct lge_touch_data *ts =
-			container_of(h, struct lge_touch_data, early_suspend);
+			container_of(h, struct lge_touch_data, power_suspend);
 
 #ifdef CONFIG_TOUCH_WAKE
 	if (touchwake_is_enabled())
@@ -2442,10 +2431,10 @@ static void touch_early_suspend(struct early_suspend *h)
 	touch_power_off(ts);
 }
 
-static void touch_late_resume(struct early_suspend *h)
+static void touch_late_resume(struct power_suspend *h)
 {
 	struct lge_touch_data *ts =
-			container_of(h, struct lge_touch_data, early_suspend);
+			container_of(h, struct lge_touch_data, power_suspend);
 
 #ifdef CONFIG_TOUCH_WAKE
 	if (touchwake_is_enabled())

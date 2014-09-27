@@ -115,7 +115,7 @@ static ssize_t timeout_suspend_show(struct device *d,
 static DEVICE_ATTR(timeout_suspend, 0664, timeout_suspend_show,
 		   timeout_suspend_store);
 
-static void rmnet_early_suspend(struct power_suspend *handler)
+static void rmnet_power_suspend(struct power_suspend *handler)
 {
 	if (rmnet0) {
 		struct rmnet_private *p = netdev_priv(to_net_dev(rmnet0));
@@ -132,7 +132,7 @@ static void rmnet_late_resume(struct power_suspend *handler)
 }
 
 static struct power_suspend rmnet_power_suspend = {
-	.suspend = rmnet_early_suspend,
+	.suspend = rmnet_power_suspend,
 	.resume = rmnet_late_resume,
 };
 

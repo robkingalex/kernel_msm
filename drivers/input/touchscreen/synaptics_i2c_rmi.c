@@ -532,11 +532,11 @@ static int synaptics_ts_probe(
 		ts->timer.function = synaptics_ts_timer_func;
 		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
 	}
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	/*ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;*/
-	ts->early_suspend.suspend = synaptics_ts_early_suspend;
-	ts->early_suspend.resume = synaptics_ts_late_resume;
-	register_power_suspend(&ts->early_suspend);
+#ifdef CONFIG_POWERSUSPEND
+	/*ts->power_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;*/
+	ts->power_suspend.suspend = synaptics_ts_power_suspend;
+	ts->power_suspend.resume = synaptics_ts_late_resume;
+	register_power_suspend(&ts->power_suspend);
 #endif
 
 	printk(KERN_INFO "synaptics_ts_probe: Start touchscreen %s in %s mode\n", ts->input_dev->name, ts->use_irq ? "interrupt" : "polling");
@@ -558,7 +558,7 @@ err_check_functionality_failed:
 static int synaptics_ts_remove(struct i2c_client *client)
 {
 	struct synaptics_ts_data *ts = i2c_get_clientdata(client);
-	unregister_early_suspend(&ts->early_suspend);
+	unregister_power_suspend(&ts->power_suspend);
 	if (ts->use_irq)
 		free_irq(client->irq, ts);
 	else
@@ -620,7 +620,7 @@ static int synaptics_ts_resume(struct i2c_client *client)
 }
 
 #ifdef CONFIG_POWERSUSPEND
-static void synaptics_ts_early_suspend(struct power_suspend *h)
+static void synaptics_ts_power_suspend(struct power_suspend *h)
 {
 	struct synaptics_ts_data *ts;
 	ts = container_of(h, struct synaptics_ts_data, power_suspend);

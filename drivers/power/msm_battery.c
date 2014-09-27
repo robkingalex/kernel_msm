@@ -246,7 +246,7 @@ struct msm_battery_info {
 
 	u32 vbatt_modify_reply_avail;
 
-	struct power_suspend early_suspend;
+	struct power_suspend power_suspend;
 };
 
 static struct msm_battery_info msm_batt_info = {
@@ -753,7 +753,7 @@ static int msm_batt_modify_client(u32 client_handle, u32 desired_batt_voltage,
 	return 0;
 }
 
-void msm_batt_early_suspend(struct power_suspend *h)
+void msm_batt_power_suspend(struct power_suspend *h)
 {
 	int rc;
 
@@ -1170,8 +1170,8 @@ static int msm_batt_cleanup(void)
 	}
 
 #ifdef CONFIG_POWERSUSPEND
-	if (msm_batt_info.early_suspend.suspend == msm_batt_early_suspend)
-		unregister_power_suspend(&msm_batt_info.early_suspend);
+	if (msm_batt_info.power_suspend.suspend == msm_batt_power_suspend)
+		unregister_power_suspend(&msm_batt_info.power_suspend);
 #endif
 #endif
 	return rc;
@@ -1425,10 +1425,10 @@ static int __devinit msm_batt_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_POWERSUSPEND
-	/*msm_batt_info.early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;*/
-	msm_batt_info.early_suspend.suspend = msm_batt_early_suspend;
-	msm_batt_info.early_suspend.resume = msm_batt_late_resume;
-	register_power_suspend(&msm_batt_info.early_suspend);
+	/*msm_batt_info.power_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;*/
+	msm_batt_info.power_suspend.suspend = msm_batt_power_suspend;
+	msm_batt_info.power_suspend.resume = msm_batt_late_resume;
+	register_power_suspend(&msm_batt_info.power_suspend);
 #endif
 	msm_batt_update_psy_status();
 

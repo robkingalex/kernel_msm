@@ -41,7 +41,7 @@ struct thermal_trig_data {
 
 static struct led_trigger thermal_led_trigger;
 
-static void thermal_trig_early_suspend(struct power_suspend *h)
+static void thermal_trig_power_suspend(struct power_suspend *h)
 {
 	struct thermal_trig_data *thermal_data =
 		container_of(h, struct thermal_trig_data, suspend);
@@ -85,7 +85,7 @@ static void thermal_trig_activate(struct led_classdev *led_cdev)
 	thermal_data->active = 1;
 	thermal_data->brightness = 0;
 
-	thermal_data->suspend.suspend = thermal_trig_early_suspend;
+	thermal_data->suspend.suspend = thermal_trig_power_suspend;
 	thermal_data->suspend.resume =  thermal_trig_late_resume;
 	/*thermal_data->suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;*/
 	register_power_suspend(&thermal_data->suspend);

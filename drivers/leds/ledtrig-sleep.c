@@ -29,7 +29,7 @@ static struct notifier_block ledtrig_sleep_pm_notifier = {
 	.priority = 0,
 };
 
-static void ledtrig_sleep_early_suspend(struct power_suspend *h)
+static void ledtrig_sleep_power_suspend(struct power_suspend *h)
 {
 	led_trigger_event(ledtrig_sleep, LED_FULL);
 }
@@ -39,8 +39,8 @@ static void ledtrig_sleep_early_resume(struct power_suspend *h)
 	led_trigger_event(ledtrig_sleep, LED_OFF);
 }
 
-static struct power_suspend ledtrig_sleep_early_suspend_handler = {
-	.suspend = ledtrig_sleep_early_suspend,
+static struct power_suspend ledtrig_sleep_power_suspend_handler = {
+	.suspend = ledtrig_sleep_power_suspend,
 	.resume = ledtrig_sleep_early_resume,
 };
 
@@ -66,13 +66,13 @@ static int __init ledtrig_sleep_init(void)
 {
 	led_trigger_register_simple("sleep", &ledtrig_sleep);
 	register_pm_notifier(&ledtrig_sleep_pm_notifier);
-	register_power_suspend(&ledtrig_sleep_early_suspend_handler);
+	register_power_suspend(&ledtrig_sleep_power_suspend_handler);
 	return 0;
 }
 
 static void __exit ledtrig_sleep_exit(void)
 {
-	unregister_power_suspend(&ledtrig_sleep_early_suspend_handler);
+	unregister_power_suspend(&ledtrig_sleep_power_suspend_handler);
 	unregister_pm_notifier(&ledtrig_sleep_pm_notifier);
 	led_trigger_unregister_simple(ledtrig_sleep);
 }

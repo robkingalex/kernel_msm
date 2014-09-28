@@ -13,7 +13,7 @@ else
 fi
 kernel="defcon"
 version="89u-r1-unleashed"
-rom="AOSP"
+rom="CM11"
 variant="mako"
 ramdisk=ramdisk
 #ramdisk=/home/defcon/Desktop/newboot/ramdisk

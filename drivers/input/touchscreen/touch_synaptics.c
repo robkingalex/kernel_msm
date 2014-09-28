@@ -22,6 +22,8 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 
+#include <linux/powersuspend.h>
+#include <linux/input/mt.h>
 #include <linux/input/lge_touch_core.h>
 #include <linux/input/touch_synaptics.h>
 

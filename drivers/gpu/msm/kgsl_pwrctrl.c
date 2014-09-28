@@ -1110,6 +1110,7 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	pwr->pm_qos_latency = 501;
 
 	pm_runtime_enable(device->parentdev);
+	register_power_suspend(&device->display_off);
 	return result;
 
 clk_err:
@@ -1129,6 +1130,7 @@ void kgsl_pwrctrl_close(struct kgsl_device *device)
 	KGSL_PWR_INFO(device, "close device %d\n", device->id);
 
 	pm_runtime_disable(device->parentdev);
+	unregister_power_suspend(&device->display_off);
 
 	clk_put(pwr->ebi1_clk);
 

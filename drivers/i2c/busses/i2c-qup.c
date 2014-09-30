@@ -16,7 +16,7 @@
  */
 
 /* #define DEBUG */
-#define SECURE_INPUT
+
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -172,40 +172,6 @@ struct qup_i2c_dev {
 	int                          i2c_gpios[ARRAY_SIZE(i2c_rsrcs)];
 };
 
-#ifdef SECURE_INPUT
-static void qup_i2c_pwr_mgmt(struct qup_i2c_dev *dev, unsigned int state);
-static int is_secure_world = 0;
-extern int mxt_power_reset(void);
-static ssize_t qup_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	pr_info("%s[qup] %d\n", __func__, is_secure_world);
-	return sprintf(buf, "%d\n", is_secure_world);
-}
-
-static ssize_t qup_store(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
-{
-    struct qup_i2c_dev *pdev = dev_get_drvdata(dev);
-	if (!strncmp(buf, "0", 1)) {
-		is_secure_world = 0;
-	}
-	else if (!strncmp(buf, "1", 1)) {
-		if (pdev->pwr_state == 0)
-			qup_i2c_pwr_mgmt(pdev, 1);
-		pr_info("%s: %d-%d(%d)", __func__, is_secure_world, pdev->adapter.nr, pdev->pwr_state);
-		is_secure_world = 1;
-	}
-	else {
-		pr_warn("%s: Wrong command\n", __func__);
-	}
-	return count;
-}
-
-static DEVICE_ATTR(qup_block, S_IRUGO | S_IWUSR , qup_show, qup_store);
-#endif
-
 #ifdef DEBUG
 static void
 qup_print_status(struct qup_i2c_dev *dev)
@@ -228,23 +194,13 @@ static irqreturn_t
 qup_i2c_interrupt(int irq, void *devid)
 {
 	struct qup_i2c_dev *dev = devid;
-	uint32_t status = 0;
-	uint32_t status1 = 0;
-	uint32_t op_flgs = 0;
+	uint32_t status = readl_relaxed(dev->base + QUP_I2C_STATUS);
+	uint32_t status1 = readl_relaxed(dev->base + QUP_ERROR_FLAGS);
+	uint32_t op_flgs = readl_relaxed(dev->base + QUP_OPERATIONAL);
 	int err = 0;
-
-#ifdef SECURE_INPUT
-	if (is_secure_world && dev->adapter.nr == 3) {
-		return 0;
-	}
-#endif
 
 	if (pm_runtime_suspended(dev->dev))
 		return IRQ_NONE;
-
-	status = readl_relaxed(dev->base + QUP_I2C_STATUS);
-	status1 = readl_relaxed(dev->base + QUP_ERROR_FLAGS);
-	op_flgs = readl_relaxed(dev->base + QUP_OPERATIONAL);
 
 	if (!dev->msg || !dev->complete) {
 		/* Clear Error interrupt if it's a level triggered interrupt*/
@@ -374,12 +330,6 @@ qup_config_core_on_en(struct qup_i2c_dev *dev)
 static void
 qup_i2c_pwr_mgmt(struct qup_i2c_dev *dev, unsigned int state)
 {
-#ifdef SECURE_INPUT
-	if (is_secure_world && dev->adapter.nr == 3) {
-		return;
-	}
-#endif
-
 	dev->pwr_state = state;
 	if (state != 0) {
 		clk_prepare_enable(dev->clk);
@@ -819,12 +769,6 @@ qup_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	long timeout;
 	int err;
 
-#ifdef SECURE_INPUT
-	if (is_secure_world && dev->adapter.nr == 3) {
-		return 0;
-	}
-#endif
-
 	pm_runtime_get_sync(dev->dev);
 	mutex_lock(&dev->mlock);
 
@@ -1195,10 +1139,6 @@ qup_i2c_probe(struct platform_device *pdev)
 		goto get_res_failed;
 	}
 
-#ifdef SECURE_INPUT
-	device_create_file(&pdev->dev, &dev_attr_qup_block);
-#endif
-
 	/*
 	 * We only have 1 interrupt for new hardware targets and in_irq,
 	 * out_irq will be NULL for those platforms
@@ -1494,14 +1434,6 @@ static int i2c_qup_pm_suspend_runtime(struct device *device)
 {
 	struct platform_device *pdev = to_platform_device(device);
 	struct qup_i2c_dev *dev = platform_get_drvdata(pdev);
-
-#ifdef SECURE_INPUT
-	if (is_secure_world && dev->adapter.nr == 3) {
-		pr_info("%s: %d-%d", __func__, is_secure_world, dev->adapter.nr);
-		return 0;
-	}
-#endif
-
 	dev_dbg(device, "pm_runtime: suspending...\n");
 	/* Grab mutex to ensure ongoing transaction is over */
 	mutex_lock(&dev->mlock);
@@ -1519,14 +1451,6 @@ static int i2c_qup_pm_resume_runtime(struct device *device)
 	struct platform_device *pdev = to_platform_device(device);
 	struct qup_i2c_dev *dev = platform_get_drvdata(pdev);
 	int ret = 0;
-
-#ifdef SECURE_INPUT
-	if (is_secure_world && dev->adapter.nr == 3) {
-		pr_info("%s: %d-%d", __func__, is_secure_world, dev->adapter.nr);
-		return 0;
-	}
-#endif
-
 	dev_dbg(device, "pm_runtime: resuming...\n");
 	if (dev->pwr_state == 0) {
 		ret = qup_i2c_request_gpios(dev);
@@ -1564,12 +1488,10 @@ static int qup_i2c_resume(struct device *device)
 #endif /* CONFIG_PM */
 
 static const struct dev_pm_ops i2c_qup_dev_pm_ops = {
-	.suspend_noirq = qup_i2c_suspend,
-	.resume_noirq = qup_i2c_resume,
-	/*SET_SYSTEM_SLEEP_PM_OPS(
+	SET_SYSTEM_SLEEP_PM_OPS(
 		qup_i2c_suspend,
 		qup_i2c_resume
-	)*/
+	)
 	SET_RUNTIME_PM_OPS(
 		i2c_qup_pm_suspend_runtime,
 		i2c_qup_pm_resume_runtime,

@@ -303,6 +303,17 @@ static void schedule_detect_work(struct hsd_info *hi)
 #endif
 }
 
+static irqreturn_t gpio_irq_handler(int irq, void *dev_id)
+{
+	struct hsd_info *hi = (struct hsd_info *) dev_id;
+
+	HSD_DBG("gpio_irq_handler");
+
+	schedule_detect_work(hi);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t button_irq_handler(int irq, void *dev_id)
 {
 	struct hsd_info *hi = (struct hsd_info *) dev_id;

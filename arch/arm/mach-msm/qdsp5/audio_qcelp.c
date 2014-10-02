@@ -32,7 +32,7 @@
 #include <linux/wait.h>
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
-#include <linux/earlysuspend.h>
+#include <linux/powersuspend.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/msm_audio.h>
@@ -87,9 +87,9 @@ struct buffer {
 	unsigned short mfield_sz; /*only useful for data has meta field */
 };
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 struct audqcelp_suspend_ctl {
-	struct early_suspend node;
+	struct power_suspend node;
 	struct audio *audio;
 };
 #endif
@@ -150,7 +150,7 @@ struct audio {
 	unsigned queue_id;
 	uint16_t dec_id;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	struct audqcelp_suspend_ctl suspend_ctl;
 #endif
 
@@ -182,7 +182,7 @@ static void audqcelp_send_data(struct audio *audio, unsigned needed);
 static void audqcelp_config_hostpcm(struct audio *audio);
 static void audqcelp_buffer_refresh(struct audio *audio);
 static void audqcelp_dsp_event(void *private, unsigned id, uint16_t *msg);
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 static void audqcelp_post_event(struct audio *audio, int type,
 		union msm_audio_event_payload payload);
 #endif
@@ -1316,8 +1316,8 @@ static int audqcelp_release(struct inode *inode, struct file *file)
 	audqcelp_flush_pcm_buf(audio);
 	msm_adsp_put(audio->audplay);
 	audpp_adec_free(audio->dec_id);
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&audio->suspend_ctl.node);
+#ifdef CONFIG_POWERSUSPEND
+	unregister_power_suspend(&audio->suspend_ctl.node);
 #endif
 	audio->opened = 0;
 	audio->event_abort = 1;
@@ -1339,7 +1339,7 @@ static int audqcelp_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 static void audqcelp_post_event(struct audio *audio, int type,
 		union msm_audio_event_payload payload)
 {
@@ -1369,7 +1369,7 @@ static void audqcelp_post_event(struct audio *audio, int type,
 	wake_up(&audio->event_wait);
 }
 
-static void audqcelp_suspend(struct early_suspend *h)
+static void audqcelp_suspend(struct power_suspend *h)
 {
 	struct audqcelp_suspend_ctl *ctl =
 		container_of(h, struct audqcelp_suspend_ctl, node);
@@ -1379,7 +1379,7 @@ static void audqcelp_suspend(struct early_suspend *h)
 	audqcelp_post_event(ctl->audio, AUDIO_EVENT_SUSPEND, payload);
 }
 
-static void audqcelp_resume(struct early_suspend *h)
+static void audqcelp_resume(struct power_suspend *h)
 {
 	struct audqcelp_suspend_ctl *ctl =
 		container_of(h, struct audqcelp_suspend_ctl, node);
@@ -1627,12 +1627,12 @@ static int audqcelp_open(struct inode *inode, struct file *file)
 	if (IS_ERR(audio->dentry))
 		MM_DBG("debugfs_create_file failed\n");
 #endif
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	audio->suspend_ctl.node.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
 	audio->suspend_ctl.node.resume = audqcelp_resume;
 	audio->suspend_ctl.node.suspend = audqcelp_suspend;
 	audio->suspend_ctl.audio = audio;
-	register_early_suspend(&audio->suspend_ctl.node);
+	register_power_suspend(&audio->suspend_ctl.node);
 #endif
 	for (i = 0; i < AUDQCELP_EVENT_NUM; i++) {
 		e_node = kmalloc(sizeof(struct audqcelp_event), GFP_KERNEL);

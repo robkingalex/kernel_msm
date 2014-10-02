@@ -18,6 +18,7 @@
 #include <linux/percpu.h>
 #include <linux/profile.h>
 #include <linux/sched.h>
+#include <linux/module.h>
 
 #include <asm/irq_regs.h>
 
@@ -191,7 +192,8 @@ static void tick_setup_device(struct tick_device *td,
 	 * When global broadcasting is active, check if the current
 	 * device is registered as a placeholder for broadcast mode.
 	 * This allows us to handle this x86 misfeature in a generic
-	 * way.
+	 * way. This function also returns !=0 when we keep the
+	 * current active broadcast state for this CPU.
 	 */
 	if (tick_device_uses_broadcast(newdev, cpu))
 		return;
@@ -205,11 +207,11 @@ static void tick_setup_device(struct tick_device *td,
 /*
  * Check, if the new registered device should be used.
  */
-static int tick_check_new_device(struct clock_event_device *newdev)
+void tick_check_new_device(struct clock_event_device *newdev)
 {
 	struct clock_event_device *curdev;
 	struct tick_device *td;
-	int cpu, ret = NOTIFY_OK;
+	int cpu;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&tick_device_lock, flags);
@@ -257,6 +259,9 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 			goto out_bc;
 	}
 
+	if (!try_module_get(newdev->owner))
+		return;
+
 	/*
 	 * Replace the eventually existing device by the new
 	 * device. If the current device is the broadcast device, do
@@ -272,18 +277,14 @@ static int tick_check_new_device(struct clock_event_device *newdev)
 		tick_oneshot_notify();
 
 	raw_spin_unlock_irqrestore(&tick_device_lock, flags);
-	return NOTIFY_STOP;
+	return;
 
 out_bc:
 	/*
 	 * Can the new device be used as a broadcast device ?
 	 */
-	if (tick_check_broadcast_device(newdev))
-		ret = NOTIFY_STOP;
-
+	tick_install_broadcast_device(newdev);
 	raw_spin_unlock_irqrestore(&tick_device_lock, flags);
-
-	return ret;
 }
 
 /*
@@ -291,7 +292,7 @@ out_bc:
  *
  * Called with interrupts disabled.
  */
-static void tick_handover_do_timer(int *cpup)
+void tick_handover_do_timer(int *cpup)
 {
 	if (*cpup == tick_do_timer_cpu) {
 		int cpu = cpumask_first(cpu_online_mask);
@@ -308,7 +309,7 @@ static void tick_handover_do_timer(int *cpup)
  * access the hardware device itself.
  * We just set the mode and remove it from the lists.
  */
-static void tick_shutdown(unsigned int *cpup)
+void tick_shutdown(unsigned int *cpup)
 {
 	struct tick_device *td = &per_cpu(tick_cpu_device, *cpup);
 	struct clock_event_device *dev = td->evtdev;
@@ -329,7 +330,7 @@ static void tick_shutdown(unsigned int *cpup)
 	raw_spin_unlock_irqrestore(&tick_device_lock, flags);
 }
 
-static void tick_suspend(void)
+void tick_suspend(void)
 {
 	struct tick_device *td = &__get_cpu_var(tick_cpu_device);
 	unsigned long flags;
@@ -339,7 +340,7 @@ static void tick_suspend(void)
 	raw_spin_unlock_irqrestore(&tick_device_lock, flags);
 }
 
-static void tick_resume(void)
+void tick_resume(void)
 {
 	struct tick_device *td = &__get_cpu_var(tick_cpu_device);
 	unsigned long flags;
@@ -357,16 +358,9 @@ static void tick_resume(void)
 	raw_spin_unlock_irqrestore(&tick_device_lock, flags);
 }
 
-/*
- * Notification about clock event devices
- */
-static int tick_notify(struct notifier_block *nb, unsigned long reason,
-			       void *dev)
+void tick_notify(unsigned long reason, void *dev)
 {
 	switch (reason) {
-
-	case CLOCK_EVT_NOTIFY_ADD:
-		return tick_check_new_device(dev);
 
 	case CLOCK_EVT_NOTIFY_BROADCAST_ON:
 	case CLOCK_EVT_NOTIFY_BROADCAST_OFF:
@@ -401,21 +395,12 @@ static int tick_notify(struct notifier_block *nb, unsigned long reason,
 	default:
 		break;
 	}
-
-	return NOTIFY_OK;
 }
-
-static struct notifier_block tick_notifier = {
-	.notifier_call = tick_notify,
-};
 
 /**
  * tick_init - initialize the tick control
- *
- * Register the notifier with the clockevents framework
  */
 void __init tick_init(void)
 {
-	clockevents_register_notifier(&tick_notifier);
 	tick_broadcast_init();
 }

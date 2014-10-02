@@ -24,7 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/earlysuspend.h>
+#include <linux/powersuspend.h>
 #include <linux/jiffies.h>
 #include <linux/sysdev.h>
 #include <linux/types.h>
@@ -77,7 +77,7 @@ struct lge_touch_data
 	struct delayed_work			work_init;
 	struct delayed_work			work_touch_lock;
 	struct work_struct  		work_fw_upgrade;
-	struct early_suspend		early_suspend;
+	struct power_suspend		power_suspend;
 	struct touch_platform_data 	*pdata;
 	struct touch_data			ts_data;
 	struct touch_fw_info		fw_info;
@@ -140,10 +140,8 @@ int ghost_detection_count = 0;
 #define MAX_RETRY_COUNT			3
 #define MAX_GHOST_CHECK_COUNT	3
 
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-static void touch_early_suspend(struct early_suspend *h);
-static void touch_late_resume(struct early_suspend *h);
-#endif
+static void touch_power_suspend(struct power_suspend *h);
+static void touch_late_resume(struct power_suspend *h);
 
 /* Auto Test interface for some model */
 struct lge_touch_data *touch_test_dev = NULL;
@@ -3629,17 +3627,14 @@ static int touch_probe(struct i2c_client *client, const struct i2c_device_id *id
 		ts->accuracy_filter.ignore_pressure_gap = 5;
 		ts->accuracy_filter.delta_max = 30;
 		ts->accuracy_filter.max_pressure = 255;
-		ts->accuracy_filter.time_to_max_pressure = one_sec / 25;
-		ts->accuracy_filter.direction_count = one_sec / 8;
-		ts->accuracy_filter.touch_max_count = one_sec / 3;
+		ts->accuracy_filter.time_to_max_pressure = one_sec / 20;
+		ts->accuracy_filter.direction_count = one_sec / 6;
+		ts->accuracy_filter.touch_max_count = one_sec / 2;
 	}
-
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	ts->early_suspend.suspend = touch_early_suspend;
-	ts->early_suspend.resume = touch_late_resume;
-	register_early_suspend(&ts->early_suspend);
-#endif
+	/*ts->power_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;*/
+	ts->power_suspend.suspend = touch_power_suspend;
+	ts->power_suspend.resume = touch_late_resume;
+	register_power_suspend(&ts->power_suspend);
 
 	atomic_set(&ts->keypad_enable, 1);
 
@@ -3675,7 +3670,7 @@ err_lge_touch_sys_dev_register:
 	sysdev_unregister(&lge_touch_sys_device);
 err_lge_touch_sys_class_register:
 	sysdev_class_unregister(&lge_touch_sys_class);
-	unregister_early_suspend(&ts->early_suspend);
+	unregister_power_suspend(&ts->power_suspend);
 #ifdef CUST_G_TOUCH
 err_interrupt_failed:
 err_input_register_device_failed:
@@ -3720,8 +3715,7 @@ static int touch_remove(struct i2c_client *client)
 	kobject_del(&ts->lge_touch_kobj);
 	sysdev_unregister(&lge_touch_sys_device);
 	sysdev_class_unregister(&lge_touch_sys_class);
-
-	unregister_early_suspend(&ts->early_suspend);
+	unregister_power_suspend(&ts->power_suspend);
 
 	if (ts->pdata->role->operation_mode)
 		free_irq(client->irq, ts);
@@ -3739,11 +3733,11 @@ static int touch_remove(struct i2c_client *client)
 	return 0;
 }
 
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-static void touch_early_suspend(struct early_suspend *h)
+#if defined(CONFIG_POWERSUSPEND)
+static void touch_power_suspend(struct power_suspend *h)
 {
 	struct lge_touch_data *ts =
-			container_of(h, struct lge_touch_data, early_suspend);
+			container_of(h, struct lge_touch_data, power_suspend);
 #endif
 #ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
  #if defined(CONFIG_TOUCHSCREEN_SWEEP2WAKE) || defined(CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE)
@@ -3757,18 +3751,13 @@ static void touch_early_suspend(struct early_suspend *h)
 #endif
 #endif
 
-
-
 	if (unlikely(touch_debug_mask & DEBUG_TRACE))
 		TOUCH_DEBUG_MSG("\n");
 
 	if (ts->fw_info.fw_upgrade.is_downloading == UNDER_DOWNLOADING){
-		TOUCH_INFO_MSG("early_suspend is not executed\n");
+		TOUCH_INFO_MSG("power_suspend is not executed\n");
 		return;
 	}
-
-
-	
 
 #ifdef CUST_G_TOUCH
 	if (ts->pdata->role->ghost_detection_enable) {
@@ -3797,10 +3786,10 @@ static void touch_early_suspend(struct early_suspend *h)
     }
 }
 
-static void touch_late_resume(struct early_suspend *h)
+static void touch_late_resume(struct power_suspend *h)
 {
 	struct lge_touch_data *ts =
-			container_of(h, struct lge_touch_data, early_suspend);
+			container_of(h, struct lge_touch_data, power_suspend);
 
 #ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
 #if defined(CONFIG_TOUCHSCREEN_SWEEP2WAKE) || defined(CONFIG_TOUCHSCREEN_DOUBLETAP2WAKE)
@@ -3937,4 +3926,3 @@ void touch_driver_unregister(void)
 	if (touch_wq)
 		destroy_workqueue(touch_wq);
 }
-

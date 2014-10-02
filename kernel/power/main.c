@@ -320,6 +320,47 @@ late_initcall(pm_debugfs_init);
 
 #endif /* CONFIG_PM_SLEEP */
 
+#ifdef CONFIG_PM_SLEEP_DEBUG
+/*
+ * pm_print_times: print time taken by devices to suspend and resume.
+ *
+ * show() returns whether printing of suspend and resume times is enabled.
+ * store() accepts 0 or 1.  0 disables printing and 1 enables it.
+ */
+bool pm_print_times_enabled;
+
+static ssize_t pm_print_times_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", pm_print_times_enabled);
+}
+
+static ssize_t pm_print_times_store(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    const char *buf, size_t n)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	if (val > 1)
+		return -EINVAL;
+
+	pm_print_times_enabled = !!val;
+	return n;
+}
+
+power_attr(pm_print_times);
+
+static inline void pm_print_times_init(void)
+{
+	pm_print_times_enabled = !!initcall_debug;
+}
+#else /* !CONFIG_PP_SLEEP_DEBUG */
+static inline void pm_print_times_init(void) {}
+#endif /* CONFIG_PM_SLEEP_DEBUG */
+
 struct kobject *power_kobj;
 
 /**
@@ -337,12 +378,12 @@ static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	char *s = buf;
 #ifdef CONFIG_SUSPEND
-	int i;
+	suspend_state_t i;
 
-	for (i = 0; i < PM_SUSPEND_MAX; i++) {
-		if (pm_states[i] && valid_state(i))
-			s += sprintf(s,"%s ", pm_states[i]);
-	}
+	for (i = PM_SUSPEND_MIN; i < PM_SUSPEND_MAX; i++)
+		if (pm_states[i].state)
+			s += sprintf(s,"%s ", pm_states[i].label);
+
 #endif
 #ifdef CONFIG_HIBERNATION
 	s += sprintf(s, "%s\n", "disk");
@@ -354,47 +395,61 @@ static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
 	return (s - buf);
 }
 
-static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
-			   const char *buf, size_t n)
+static suspend_state_t decode_state(const char *buf, size_t n)
 {
 #ifdef CONFIG_SUSPEND
 #ifdef CONFIG_EARLYSUSPEND
 	suspend_state_t state = PM_SUSPEND_ON;
 #else
-	suspend_state_t state = PM_SUSPEND_STANDBY;
+	suspend_state_t state = PM_SUSPEND_MIN;
 #endif
-	const char * const *s;
+	struct pm_sleep_state *s;
 #endif
 	char *p;
 	int len;
-	int error = -EINVAL;
 
 	p = memchr(buf, '\n', n);
 	len = p ? p - buf : n;
 
-	/* First, check if we are requested to hibernate */
-	if (len == 4 && !strncmp(buf, "disk", len)) {
-		error = hibernate();
-		goto Exit;
-	}
+	/* Check hibernation first. */
+	if (len == 4 && !strncmp(buf, "disk", len))
+		return PM_SUSPEND_MAX;
 
 #ifdef CONFIG_SUSPEND
-	for (s = &pm_states[state]; state < PM_SUSPEND_MAX; s++, state++) {
-		if (*s && len == strlen(*s) && !strncmp(buf, *s, len)) {
-#ifdef CONFIG_EARLYSUSPEND
-			if (state == PM_SUSPEND_ON || valid_state(state)) {
-				error = 0;
-				request_suspend_state(state);
-				break;
-			}
-#else
-			error = pm_suspend(state);
-#endif
-		}
-	}
+	for (s = &pm_states[state]; state < PM_SUSPEND_MAX; s++, state++)
+		if (s->state && len == strlen(s->label)
+		    && !strncmp(buf, s->label, len))
+			return s->state;
 #endif
 
- Exit:
+	return PM_SUSPEND_ON;
+}
+
+static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
+			   const char *buf, size_t n)
+{
+	suspend_state_t state;
+	int error;
+
+	error = pm_autosleep_lock();
+	if (error)
+		return error;
+
+	if (pm_autosleep_state() > PM_SUSPEND_ON) {
+		error = -EBUSY;
+		goto out;
+	}
+
+	state = decode_state(buf, n);
+	if (state < PM_SUSPEND_MAX)
+		error = pm_suspend(state);
+	else if (state == PM_SUSPEND_MAX)
+		error = hibernate();
+	else
+		error = -EINVAL;
+
+ out:
+	pm_autosleep_unlock();
 	return error ? error : n;
 }
 
@@ -435,7 +490,8 @@ static ssize_t wakeup_count_show(struct kobject *kobj,
 {
 	unsigned int val;
 
-	return pm_get_wakeup_count(&val) ? sprintf(buf, "%u\n", val) : -EINTR;
+	return pm_get_wakeup_count(&val, true) ?
+		sprintf(buf, "%u\n", val) : -EINTR;
 }
 
 static ssize_t wakeup_count_store(struct kobject *kobj,
@@ -443,15 +499,106 @@ static ssize_t wakeup_count_store(struct kobject *kobj,
 				const char *buf, size_t n)
 {
 	unsigned int val;
+	int error;
 
+	error = pm_autosleep_lock();
+	if (error)
+		return error;
+
+	if (pm_autosleep_state() > PM_SUSPEND_ON) {
+		error = -EBUSY;
+		goto out;
+	}
+
+	error = -EINVAL;
 	if (sscanf(buf, "%u", &val) == 1) {
 		if (pm_save_wakeup_count(val))
-			return n;
+			error = n;
 	}
-	return -EINVAL;
+
+ out:
+	pm_autosleep_unlock();
+	return error;
 }
 
 power_attr(wakeup_count);
+
+#ifdef CONFIG_PM_AUTOSLEEP
+static ssize_t autosleep_show(struct kobject *kobj,
+			      struct kobj_attribute *attr,
+			      char *buf)
+{
+	suspend_state_t state = pm_autosleep_state();
+
+	if (state == PM_SUSPEND_ON)
+		return sprintf(buf, "off\n");
+
+#ifdef CONFIG_SUSPEND
+	if (state < PM_SUSPEND_MAX)
+		return sprintf(buf, "%s\n", pm_states[state].state ?
+					pm_states[state].label : "error");
+#endif
+#ifdef CONFIG_HIBERNATION
+	return sprintf(buf, "disk\n");
+#else
+	return sprintf(buf, "error");
+#endif
+}
+
+static ssize_t autosleep_store(struct kobject *kobj,
+			       struct kobj_attribute *attr,
+			       const char *buf, size_t n)
+{
+	suspend_state_t state = decode_state(buf, n);
+	int error;
+
+	if (state == PM_SUSPEND_ON
+	    && strcmp(buf, "off") && strcmp(buf, "off\n"))
+		return -EINVAL;
+
+	error = pm_autosleep_set_state(state);
+	return error ? error : n;
+}
+
+power_attr(autosleep);
+#endif /* CONFIG_PM_AUTOSLEEP */
+
+#ifdef CONFIG_PM_WAKELOCKS
+static ssize_t wake_lock_show(struct kobject *kobj,
+			      struct kobj_attribute *attr,
+			      char *buf)
+{
+	return pm_show_wakelocks(buf, true);
+}
+
+static ssize_t wake_lock_store(struct kobject *kobj,
+			       struct kobj_attribute *attr,
+			       const char *buf, size_t n)
+{
+	int error = pm_wake_lock(buf);
+	return error ? error : n;
+}
+
+power_attr(wake_lock);
+
+static ssize_t wake_unlock_show(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				char *buf)
+{
+	return pm_show_wakelocks(buf, false);
+}
+
+static ssize_t wake_unlock_store(struct kobject *kobj,
+				 struct kobj_attribute *attr,
+				 const char *buf, size_t n)
+{
+	int error = pm_wake_unlock(buf);
+	return error ? error : n;
+}
+
+power_attr(wake_unlock);
+
+#endif /* CONFIG_PM_WAKELOCKS */
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PM_TRACE
@@ -501,6 +648,237 @@ power_attr(wake_lock);
 power_attr(wake_unlock);
 #endif
 
+#ifdef CONFIG_FREEZER
+static ssize_t pm_freeze_timeout_show(struct kobject *kobj,
+				      struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", freeze_timeout_msecs);
+}
+
+static ssize_t pm_freeze_timeout_store(struct kobject *kobj,
+				       struct kobj_attribute *attr,
+				       const char *buf, size_t n)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	freeze_timeout_msecs = val;
+	return n;
+}
+
+power_attr(pm_freeze_timeout);
+
+#endif	/* CONFIG_FREEZER*/
+
+#ifdef CONFIG_SEC_DVFS
+DEFINE_MUTEX(dvfs_mutex);
+static unsigned long dvfs_id;
+static unsigned long apps_min_freq;
+static unsigned long apps_max_freq;
+static unsigned long thermald_max_freq;
+
+static unsigned long touch_min_freq;
+static unsigned long unicpu_max_freq = MAX_UNICPU_LIMIT;
+
+
+static int verify_cpufreq_target(unsigned int target)
+{
+	int i;
+	struct cpufreq_frequency_table *table;
+
+	table = cpufreq_frequency_get_table(BOOT_CPU);
+	if (table == NULL)
+		return -EFAULT;
+
+	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		if (table[i].frequency < MIN_FREQ_LIMIT ||
+				table[i].frequency > MAX_FREQ_LIMIT)
+			continue;
+
+		if (target == table[i].frequency)
+			return 0;
+	}
+
+	return -EINVAL;
+}
+
+int set_freq_limit(unsigned long id, unsigned int freq)
+{
+	unsigned int min = MIN_FREQ_LIMIT;
+	unsigned int max = MAX_FREQ_LIMIT;
+
+	if (freq != 0 && freq != -1 && verify_cpufreq_target(freq))
+		return -EINVAL;
+
+	mutex_lock(&dvfs_mutex);
+
+	if (freq == -1)
+		dvfs_id &= ~id;
+	else
+		dvfs_id |= id;
+
+	/* update freq for apps/thermald */
+	if (id == DVFS_APPS_MIN_ID)
+		apps_min_freq = freq;
+	else if (id == DVFS_APPS_MAX_ID)
+		apps_max_freq = freq;
+	else if (id == DVFS_THERMALD_ID)
+		thermald_max_freq = freq;
+	else if (id == DVFS_TOUCH_ID)
+		touch_min_freq = freq;
+
+	/* set min - apps */
+	if (dvfs_id & DVFS_APPS_MIN_ID && min < apps_min_freq)
+		min = apps_min_freq;
+	if (dvfs_id & DVFS_TOUCH_ID && min < touch_min_freq)
+		min = touch_min_freq;
+
+	/* set max */
+	if (dvfs_id & DVFS_APPS_MAX_ID && max > apps_max_freq)
+		max = apps_max_freq;
+	if (dvfs_id & DVFS_THERMALD_ID && max > thermald_max_freq)
+		max = thermald_max_freq;
+	if (dvfs_id & DVFS_UNICPU_ID && max > unicpu_max_freq)
+		max = unicpu_max_freq;
+
+	/* check min max*/
+	if (min > max)
+		min = max;
+
+	/* update */
+	set_min_lock(min);
+	set_max_lock(max);
+
+	//pr_info("%s: 0x%lu %d, min %d, max %d\n",
+	//			__func__, id, freq, min, max);
+
+	/* need to update now */
+	if (id & UPDATE_NOW_BITS) {
+		int cpu;
+		unsigned int cur = 0;
+
+		for_each_online_cpu(cpu) {
+			cur = cpufreq_quick_get(cpu);
+			if (cur) {
+				struct cpufreq_policy policy;
+				policy.cpu = cpu;
+
+				if (cur < min)
+					cpufreq_driver_target(&policy,
+						min, CPUFREQ_RELATION_H);
+				else if (cur > max)
+					cpufreq_driver_target(&policy,
+						max, CPUFREQ_RELATION_L);
+			}
+		}
+	}
+
+	mutex_unlock(&dvfs_mutex);
+
+	return 0;
+}
+
+static ssize_t cpufreq_min_limit_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	int freq;
+
+	freq = get_min_lock();
+	if (!freq)
+		freq = -1;
+
+	return sprintf(buf, "%d\n", freq);
+}
+
+static ssize_t cpufreq_min_limit_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t n)
+{
+	int freq_min_limit, ret = 0;
+
+	ret = sscanf(buf, "%d", &freq_min_limit);
+
+	if (ret != 1)
+		return -EINVAL;
+
+	set_freq_limit(DVFS_APPS_MIN_ID, freq_min_limit);
+
+	return n;
+}
+
+static ssize_t cpufreq_max_limit_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	int freq;
+
+	freq = get_max_lock();
+	if (!freq)
+		freq = -1;
+
+	return sprintf(buf, "%d\n", freq);
+}
+
+static ssize_t cpufreq_max_limit_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t n)
+{
+	int freq_max_limit, ret = 0;
+
+	ret = sscanf(buf, "%d", &freq_max_limit);
+
+	if (ret != 1)
+		return -EINVAL;
+
+	set_freq_limit(DVFS_APPS_MAX_ID, freq_max_limit);
+
+	return n;
+}
+static ssize_t cpufreq_table_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+	int i, count = 0;
+	unsigned int freq;
+
+	struct cpufreq_frequency_table *table;
+
+	table = cpufreq_frequency_get_table(BOOT_CPU);
+	if (table == NULL)
+		return 0;
+
+	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++)
+		count = i;
+
+	for (i = count; i >= 0; i--) {
+		freq = table[i].frequency;
+
+		if (freq < MIN_FREQ_LIMIT || freq > MAX_FREQ_LIMIT)
+			continue;
+
+		len += sprintf(buf + len, "%u ", freq);
+	}
+
+	len--;
+	len += sprintf(buf + len, "\n");
+
+	return len;
+}
+
+static ssize_t cpufreq_table_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t n)
+{
+	pr_info("%s: Not supported\n", __func__);
+	return n;
+}
+
+power_attr(cpufreq_max_limit);
+power_attr(cpufreq_min_limit);
+power_attr(cpufreq_table);
+#endif
+
 static struct attribute *g[] = {
 	&state_attr.attr,
 #ifdef CONFIG_PM_TRACE
@@ -510,15 +888,33 @@ static struct attribute *g[] = {
 #ifdef CONFIG_PM_SLEEP
 	&pm_async_attr.attr,
 	&wakeup_count_attr.attr,
+#ifdef CONFIG_PM_AUTOSLEEP
+	&autosleep_attr.attr,
+#endif
+#ifdef CONFIG_PM_WAKELOCKS
+	&wake_lock_attr.attr,
+	&wake_unlock_attr.attr,
+#endif
 	&touch_event_attr.attr,
 	&touch_event_timer_attr.attr,
 #ifdef CONFIG_PM_DEBUG
 	&pm_test_attr.attr,
 #endif
+#ifdef CONFIG_PM_SLEEP_DEBUG
+	&pm_print_times_attr.attr,
+#endif
 #ifdef CONFIG_USER_WAKELOCK
 	&wake_lock_attr.attr,
 	&wake_unlock_attr.attr,
 #endif
+#endif
+#ifdef CONFIG_FREEZER
+	&pm_freeze_timeout_attr.attr,
+#endif
+#ifdef CONFIG_SEC_DVFS
+	&cpufreq_min_limit_attr.attr,
+	&cpufreq_max_limit_attr.attr,
+	&cpufreq_table_attr.attr,
 #endif
 	NULL,
 };
@@ -557,7 +953,18 @@ static int __init pm_init(void)
 	power_kobj = kobject_create_and_add("power", NULL);
 	if (!power_kobj)
 		return -ENOMEM;
-	return sysfs_create_group(power_kobj, &attr_group);
+
+#ifdef CONFIG_SEC_DVFS
+	apps_min_freq = MIN_FREQ_LIMIT;
+	apps_max_freq = MAX_FREQ_LIMIT;
+	thermald_max_freq = MAX_FREQ_LIMIT;
+#endif
+
+	error = sysfs_create_group(power_kobj, &attr_group);
+	if (error)
+		return error;
+	pm_print_times_init();
+	return pm_autosleep_init();
 }
 
 core_initcall(pm_init);

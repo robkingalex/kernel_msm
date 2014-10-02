@@ -3,7 +3,7 @@
  * Virtual Ethernet Interface for MSM7K Networking
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2011, 2014, The Linux Foundation. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -32,8 +32,8 @@
 #include <linux/if_arp.h>
 #include <linux/msm_rmnet.h>
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
+#ifdef CONFIG_POWERSUSPEND
+#include <linux/powersuspend.h>
 #endif
 
 #include <mach/msm_smd.h>
@@ -121,7 +121,7 @@ static int count_this_packet(void *_hdr, int len)
 #ifdef CONFIG_MSM_RMNET_DEBUG
 static unsigned long timeout_us;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 /*
  * If early suspend is enabled then we specify two timeout values,
  * screen on (default), and screen is off.
@@ -140,33 +140,34 @@ static ssize_t timeout_suspend_show(struct device *d,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	return sprintf(buf, "%lu\n", (unsigned long) timeout_suspend_us);
+	return snprintf(buf, PAGE_SIZE, "%lu\n",
+			(unsigned long) timeout_suspend_us);
 }
 
 static DEVICE_ATTR(timeout_suspend, 0664, timeout_suspend_show, timeout_suspend_store);
 
-static void rmnet_early_suspend(struct early_suspend *handler) {
+static void rmnet_power_suspend(struct power_suspend *handler) {
 	if (rmnet0) {
 		struct rmnet_private *p = netdev_priv(to_net_dev(rmnet0));
 		p->timeout_us = timeout_suspend_us;
 	}
 }
 
-static void rmnet_late_resume(struct early_suspend *handler) {
+static void rmnet_late_resume(struct power_suspend *handler) {
 	if (rmnet0) {
 		struct rmnet_private *p = netdev_priv(to_net_dev(rmnet0));
 		p->timeout_us = timeout_us;
 	}
 }
 
-static struct early_suspend rmnet_power_suspend = {
-	.suspend = rmnet_early_suspend,
+static struct power_suspend rmnet_power_suspend = {
+	.suspend = rmnet_power_suspend,
 	.resume = rmnet_late_resume,
 };
 
 static int __init rmnet_late_init(void)
 {
-	register_early_suspend(&rmnet_power_suspend);
+	register_power_suspend(&rmnet_power_suspend);
 	return 0;
 }
 
@@ -195,7 +196,7 @@ static ssize_t wakeups_xmit_show(struct device *d,
 				 char *buf)
 {
 	struct rmnet_private *p = netdev_priv(to_net_dev(d));
-	return sprintf(buf, "%lu\n", p->wakeups_xmit);
+	return snprintf(buf, PAGE_SIZE, "%lu\n", p->wakeups_xmit);
 }
 
 DEVICE_ATTR(wakeups_xmit, 0444, wakeups_xmit_show, NULL);
@@ -204,7 +205,7 @@ static ssize_t wakeups_rcv_show(struct device *d, struct device_attribute *attr,
 		char *buf)
 {
 	struct rmnet_private *p = netdev_priv(to_net_dev(d));
-	return sprintf(buf, "%lu\n", p->wakeups_rcv);
+	return snprintf(buf, PAGE_SIZE, "%lu\n", p->wakeups_rcv);
 }
 
 DEVICE_ATTR(wakeups_rcv, 0444, wakeups_rcv_show, NULL);
@@ -213,7 +214,7 @@ DEVICE_ATTR(wakeups_rcv, 0444, wakeups_rcv_show, NULL);
 static ssize_t timeout_store(struct device *d, struct device_attribute *attr,
 		const char *buf, size_t n)
 {
-#ifndef CONFIG_HAS_EARLYSUSPEND
+#ifndef CONFIG_POWERSUSPEND
 	struct rmnet_private *p = netdev_priv(to_net_dev(d));
 	p->timeout_us = timeout_us = simple_strtoul(buf, NULL, 10);
 #else
@@ -228,7 +229,7 @@ static ssize_t timeout_show(struct device *d, struct device_attribute *attr,
 {
 	struct rmnet_private *p = netdev_priv(to_net_dev(d));
 	p = netdev_priv(to_net_dev(d));
-	return sprintf(buf, "%lu\n", timeout_us);
+	return snprintf(buf, PAGE_SIZE, "%lu\n", timeout_us);
 }
 
 DEVICE_ATTR(timeout, 0664, timeout_show, timeout_store);
@@ -776,7 +777,7 @@ static int __init rmnet_init(void)
 
 #ifdef CONFIG_MSM_RMNET_DEBUG
 	timeout_us = 0;
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	timeout_suspend_us = 0;
 #endif
 #endif
@@ -830,7 +831,7 @@ static int __init rmnet_init(void)
 			continue;
 		if (device_create_file(d, &dev_attr_wakeups_rcv))
 			continue;
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 		if (device_create_file(d, &dev_attr_timeout_suspend))
 			continue;
 

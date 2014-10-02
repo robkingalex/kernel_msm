@@ -27,7 +27,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/earlysuspend.h>
+#include <linux/powersuspend.h>
 #include <linux/list.h>
 #include <linux/android_pmem.h>
 #include <linux/slab.h>
@@ -121,9 +121,9 @@ struct buffer {
 	unsigned short mfield_sz; /*only useful for data has meta field */
 };
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 struct audmp3_suspend_ctl {
-  struct early_suspend node;
+  struct power_suspend node;
   struct audio *audio;
 };
 #endif
@@ -221,7 +221,7 @@ struct audio {
 	uint32_t read_ptr_offset;
 	int16_t source;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	struct audmp3_suspend_ctl suspend_ctl;
 #endif
 
@@ -2134,8 +2134,8 @@ static int audio_release(struct inode *inode, struct file *file)
 
 	msm_adsp_put(audio->audplay);
 	audpp_adec_free(audio->dec_id);
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&audio->suspend_ctl.node);
+#ifdef CONFIG_POWERSUSPEND
+	unregister_power_suspend(&audio->suspend_ctl.node);
 #endif
 	audio->opened = 0;
 	audio->event_abort = 1;
@@ -2186,8 +2186,8 @@ static void audmp3_post_event(struct audio *audio, int type,
 	wake_up(&audio->event_wait);
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void audmp3_suspend(struct early_suspend *h)
+#ifdef CONFIG_POWERSUSPEND
+static void audmp3_suspend(struct power_suspend *h)
 {
 	struct audmp3_suspend_ctl *ctl =
 		container_of(h, struct audmp3_suspend_ctl, node);
@@ -2197,7 +2197,7 @@ static void audmp3_suspend(struct early_suspend *h)
 	audmp3_post_event(ctl->audio, AUDIO_EVENT_SUSPEND, payload);
 }
 
-static void audmp3_resume(struct early_suspend *h)
+static void audmp3_resume(struct power_suspend *h)
 {
 	struct audmp3_suspend_ctl *ctl =
 		container_of(h, struct audmp3_suspend_ctl, node);
@@ -2455,12 +2455,12 @@ static int audio_open(struct inode *inode, struct file *file)
 	if (IS_ERR(audio->dentry))
 		MM_DBG("debugfs_create_file failed\n");
 #endif
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 	audio->suspend_ctl.node.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
 	audio->suspend_ctl.node.resume = audmp3_resume;
 	audio->suspend_ctl.node.suspend = audmp3_suspend;
 	audio->suspend_ctl.audio = audio;
-	register_early_suspend(&audio->suspend_ctl.node);
+	register_power_suspend(&audio->suspend_ctl.node);
 #endif
 	for (i = 0; i < AUDMP3_EVENT_NUM; i++) {
 		e_node = kmalloc(sizeof(struct audmp3_event), GFP_KERNEL);

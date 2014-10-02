@@ -697,7 +697,7 @@ static void msm_mctl_release(struct msm_cam_media_controller *p_mctl)
 
 		p_mctl->opencnt--;
 /*                                                                        */
-	if(&(p_mctl->wake_lock.link) != NULL)
+/*	if(&(p_mctl->wake_lock.link) != NULL) */
 /*                                                                      */
 		wake_unlock(&p_mctl->wake_lock);
 	}

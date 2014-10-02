@@ -474,7 +474,7 @@ static int hsd_probe(struct platform_device *pdev)
 		goto error_02;
 	}
 
-	ret = request_threaded_irq(hi->irq_key, NULL, button_irq_handler,
+	ret = request_threaded_irq(hi->irq_detect, NULL, gpio_irq_handler,
 			IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING|IRQF_ONESHOT,
 			pdev->name, hi);
 	if (ret) {

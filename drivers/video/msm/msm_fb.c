@@ -31,7 +31,7 @@
 #include <mach/board.h>
 #include <linux/uaccess.h>
 #include <mach/iommu_domains.h>
-
+#include <linux/powersuspend.h>
 #include <linux/workqueue.h>
 #include <linux/string.h>
 #include <linux/version.h>
@@ -56,8 +56,8 @@
 #define MSM_FB_NUM	3
 #endif
 
-#ifdef CONFIG_EARLYSUSPEND
-#undef CONFIG_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
+#undef CONFIG_POWERSUSPEND
 #endif
 
 static unsigned char *fbram;
@@ -546,7 +546,7 @@ static int msm_fb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_PM) && !defined(CONFIG_EARLYSUSPEND)
+#if defined(CONFIG_PM) && !defined(CONFIG_POWERSUSPEND)
 static int msm_fb_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct msm_fb_data_type *mfd;
@@ -678,7 +678,7 @@ static int msm_fb_resume_sub(struct msm_fb_data_type *mfd)
 }
 #endif
 
-#if defined(CONFIG_PM) && !defined(CONFIG_EARLYSUSPEND)
+#if defined(CONFIG_PM) && !defined(CONFIG_POWERSUSPEND)
 static int msm_fb_resume(struct platform_device *pdev)
 {
 	/* This resume function is called when interrupt is enabled.
@@ -804,7 +804,7 @@ static struct dev_pm_ops msm_fb_dev_pm_ops = {
 static struct platform_driver msm_fb_driver = {
 	.probe = msm_fb_probe,
 	.remove = msm_fb_remove,
-#ifndef CONFIG_EARLYSUSPEND
+#ifndef CONFIG_POWERSUSPEND
 	.suspend = msm_fb_suspend,
 	.resume = msm_fb_resume,
 #endif
@@ -816,7 +816,7 @@ static struct platform_driver msm_fb_driver = {
 		   },
 };
 
-#if defined(CONFIG_EARLYSUSPEND) && defined(CONFIG_FB_MSM_MDP303)
+#if defined(CONFIG_POWERSUSPEND) && defined(CONFIG_FB_MSM_MDP303)
 static void memset32_io(u32 __iomem *_ptr, u32 val, size_t count)
 {
 	count >>= 2;
@@ -825,7 +825,7 @@ static void memset32_io(u32 __iomem *_ptr, u32 val, size_t count)
 }
 #endif
 
-#ifdef CONFIG_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 static void msmfb_power_suspend(struct power_suspend *h)
 {
 	struct msm_fb_data_type *mfd = container_of(h, struct msm_fb_data_type,
@@ -1615,7 +1615,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 #endif
 	ret = 0;
 
-#ifdef CONFIG_EARLYSUSPEND
+#ifdef CONFIG_POWERSUSPEND
 
 	if (hdmi_prim_display ||
 	    (mfd->panel_info.type != DTV_PANEL)) {

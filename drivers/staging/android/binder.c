@@ -105,7 +105,7 @@ enum {
 	BINDER_DEBUG_BUFFER_ALLOC_ASYNC     = 1U << 15,
 };
 static uint32_t binder_debug_mask = BINDER_DEBUG_USER_ERROR |
-	BINDER_DEBUG_DEAD_TRANSACTION;
+	BINDER_DEBUG_FAILED_TRANSACTION | BINDER_DEBUG_DEAD_TRANSACTION;
 module_param_named(debug_mask, binder_debug_mask, uint, S_IWUSR | S_IRUGO);
 
 static bool binder_debug_no_lock;
@@ -454,8 +454,9 @@ static size_t binder_buffer_size(struct binder_proc *proc,
 {
 	if (list_is_last(&buffer->entry, &proc->buffers))
 		return proc->buffer + proc->buffer_size - (void *)buffer->data;
-	return (size_t)list_entry(buffer->entry.next,
-			  struct binder_buffer, entry) - (size_t)buffer->data;
+	else
+		return (size_t)list_entry(buffer->entry.next,
+			struct binder_buffer, entry) - (size_t)buffer->data;
 }
 
 static void binder_insert_free_buffer(struct binder_proc *proc,
@@ -1188,7 +1189,6 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 				     uint32_t error_code)
 {
 	struct binder_thread *target_thread;
-	struct binder_transaction *next;
 
 	BUG_ON(t->flags & TF_ONE_WAY);
 	while (1) {
@@ -1216,23 +1216,24 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 					target_thread->return_error);
 			}
 			return;
-		}
-		next = t->from_parent;
+		} else {
+			struct binder_transaction *next = t->from_parent;
 
-		binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
-			     "send failed reply for transaction %d, target dead\n",
-			     t->debug_id);
+			binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
+				     "send failed reply for transaction %d, target dead\n",
+				     t->debug_id);
 
-		binder_pop_transaction(target_thread, t);
-		if (next == NULL) {
+			binder_pop_transaction(target_thread, t);
+			if (next == NULL) {
+				binder_debug(BINDER_DEBUG_DEAD_BINDER,
+					     "reply failed, no target thread at root\n");
+				return;
+			}
+			t = next;
 			binder_debug(BINDER_DEBUG_DEAD_BINDER,
-				     "reply failed, no target thread at root\n");
-			return;
+				     "reply failed, no target thread -- retry %d\n",
+				      t->debug_id);
 		}
-		t = next;
-		binder_debug(BINDER_DEBUG_DEAD_BINDER,
-			     "reply failed, no target thread -- retry %d\n",
-			      t->debug_id);
 	}
 }
 

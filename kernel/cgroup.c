@@ -577,12 +577,10 @@ static void free_cg_links(struct list_head *tmp)
 	struct cg_cgroup_link *link;
 	struct cg_cgroup_link *saved_link;
 
-	write_lock(&css_set_lock);
 	list_for_each_entry_safe(link, saved_link, tmp, cgrp_link_list) {
 		list_del(&link->cgrp_link_list);
 		kfree(link);
 	}
-	write_unlock(&css_set_lock);
 }
 
 /*
@@ -595,17 +593,14 @@ static int allocate_cg_links(int count, struct list_head *tmp)
 	struct cg_cgroup_link *link;
 	int i;
 	INIT_LIST_HEAD(tmp);
-	write_lock(&css_set_lock);
 	for (i = 0; i < count; i++) {
 		link = kmalloc(sizeof(*link), GFP_KERNEL);
 		if (!link) {
-			write_unlock(&css_set_lock);
 			free_cg_links(tmp);
 			return -ENOMEM;
 		}
 		list_add(&link->cgrp_link_list, tmp);
 	}
-	write_unlock(&css_set_lock);
 	return 0;
 }
 
@@ -3987,7 +3982,7 @@ static int cgroup_css_sets_empty(struct cgroup *cgrp)
 	read_lock(&css_set_lock);
 	list_for_each_entry(link, &cgrp->css_sets, cgrp_link_list) {
 		struct css_set *cg = link->cg;
-		if (atomic_read(&cg->refcount) > 0) {
+		if (cg && (atomic_read(&cg->refcount) > 0)) {
 			retval = 0;
 			break;
 		}

@@ -144,12 +144,12 @@ SYSCALL_DEFINE4(osf_getdirentries, unsigned int, fd,
 		struct osf_dirent __user *, dirent, unsigned int, count,
 		long __user *, basep)
 {
-	int error;
+	int error, fput_needed;
 	struct file *file;
 	struct osf_dirent_callback buf;
 
 	error = -EBADF;
-	file = fget(fd);
+	file = fget_light(fd, &fput_needed);
 	if (!file)
 		goto out;
 
@@ -164,7 +164,7 @@ SYSCALL_DEFINE4(osf_getdirentries, unsigned int, fd,
 	if (count != buf.count)
 		error = count - buf.count;
 
-	fput(file);
+	fput_light(file, fput_needed);
  out:
 	return error;
 }
@@ -285,7 +285,7 @@ struct procfs_args {
  * unhappy with OSF UFS. [CHECKME]
  */
 static int
-osf_ufs_mount(char *dirname, struct ufs_args __user *args, int flags)
+osf_ufs_mount(const char *dirname, struct ufs_args __user *args, int flags)
 {
 	int retval;
 	struct cdfs_args tmp;
@@ -305,7 +305,7 @@ osf_ufs_mount(char *dirname, struct ufs_args __user *args, int flags)
 }
 
 static int
-osf_cdfs_mount(char *dirname, struct cdfs_args __user *args, int flags)
+osf_cdfs_mount(const char *dirname, struct cdfs_args __user *args, int flags)
 {
 	int retval;
 	struct cdfs_args tmp;
@@ -325,7 +325,7 @@ osf_cdfs_mount(char *dirname, struct cdfs_args __user *args, int flags)
 }
 
 static int
-osf_procfs_mount(char *dirname, struct procfs_args __user *args, int flags)
+osf_procfs_mount(const char *dirname, struct procfs_args __user *args, int flags)
 {
 	struct procfs_args tmp;
 

@@ -288,7 +288,7 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	init_completion(&cpu_work->complete);
 
 	/* synchronous cpus share the same policy */
-	if (is_clk && !cpu_clk[policy->cpu])
+	if (!cpu_clk[policy->cpu])
 		return 0;
 
 	if (cpufreq_frequency_table_cpuinfo(policy, table)) {

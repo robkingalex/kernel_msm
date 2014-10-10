@@ -14,6 +14,11 @@
  *
  *  v1.4 - add a hybrid-kernel mode, accepting both kernel hooks (first wins)
  *
+ *  v1.5 - Remove hybrid mode! as it's calling too early wakeup and mdss stuck!
+ *         screen may not turn on for LG G2 kernel in random cases.
+ *  v1.6 - Export suspend_mode to MDSS to prevent calling hooks if PANNEL
+ *         Hook is not used for powersuspend.
+ *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
  * may be copied, distributed, and modified under those terms.
@@ -31,12 +36,12 @@
 #include <linux/workqueue.h>
 
 #define MAJOR_VERSION	1
-#define MINOR_VERSION	5
+#define MINOR_VERSION	6
 
 /*
  * debug = 1 will print all
  */
-static unsigned int debug = 2;
+static unsigned int debug = 1;
 module_param_named(debug_mask, debug, uint, 0644);
 
 #define dprintk(msg...)		\
@@ -57,8 +62,8 @@ static DEFINE_SPINLOCK(state_lock);
 
 /* Yank555.lu : Current powersave state (screen on / off) */
 static int state;
-/* Yank555.lu : Current powersave mode  (kernel / userspace / panel / hybrid) */
-static int mode;
+/* Yank555.lu : Current powersave suspend_mode  (kernel / userspace / panel) */
+int suspend_mode;
 
 void register_power_suspend(struct power_suspend *handler)
 {
@@ -156,8 +161,8 @@ void set_power_suspend_state(int new_state)
 void set_power_suspend_state_autosleep_hook(int new_state)
 {
 	dprintk("[POWERSUSPEND] autosleep resquests %s.\n", new_state == POWER_SUSPEND_ACTIVE ? "sleep" : "wakeup");
-	/* Yank555.lu : Only allow autosleep hook changes in autosleep & hybrid mode */
-	if (mode == POWER_SUSPEND_AUTOSLEEP || mode == POWER_SUSPEND_HYBRID)
+	/* Yank555.lu : Only allow autosleep hook changes in autosleep */
+	if (suspend_mode == POWER_SUSPEND_AUTOSLEEP)
 		set_power_suspend_state(new_state);
 }
 
@@ -166,8 +171,8 @@ EXPORT_SYMBOL(set_power_suspend_state_autosleep_hook);
 void set_power_suspend_state_panel_hook(int new_state)
 {
 	dprintk("[POWERSUSPEND] panel resquests %s.\n", new_state == POWER_SUSPEND_ACTIVE ? "sleep" : "wakeup");
-	/* Yank555.lu : Only allow autosleep hook changes in autosleep & hybrid mode */
-	if (mode == POWER_SUSPEND_PANEL || mode == POWER_SUSPEND_HYBRID)
+	/* Yank555.lu : Only allow panel hook changes in mdss */
+	if (suspend_mode == POWER_SUSPEND_PANEL)
 		set_power_suspend_state(new_state);
 }
 
@@ -175,7 +180,6 @@ EXPORT_SYMBOL(set_power_suspend_state_panel_hook);
 
 /* ------------------------------------------ sysfs interface ------------------------------------------ */
 
-#if 0 /* do not export controls, this mode is not for users to play with. */
 static ssize_t power_suspend_state_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -187,8 +191,8 @@ static ssize_t power_suspend_state_store(struct kobject *kobj,
 {
 	int new_state = 0;
 
-	/* Yank555.lu : Only allow sysfs changes from userspace mode */
-	if (mode != POWER_SUSPEND_USERSPACE)
+	/* Yank555.lu : Only allow sysfs changes from userspace suspend_mode */
+	if (suspend_mode != POWER_SUSPEND_USERSPACE)
 		return -EINVAL;
 
 	sscanf(buf, "%d\n", &new_state);
@@ -208,7 +212,7 @@ static struct kobj_attribute power_suspend_state_attribute =
 static ssize_t power_suspend_mode_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-        return sprintf(buf, "%u\n", mode);
+        return sprintf(buf, "%u\n", suspend_mode);
 }
 
 static ssize_t power_suspend_mode_store(struct kobject *kobj,
@@ -218,15 +222,19 @@ static ssize_t power_suspend_mode_store(struct kobject *kobj,
 
 	sscanf(buf, "%d\n", &data);
 
+#if 0 /* do not allow user/app to mess with this control */
 	switch (data) {
 		case POWER_SUSPEND_AUTOSLEEP:
 		case POWER_SUSPEND_PANEL:
 		case POWER_SUSPEND_USERSPACE:
-		case POWER_SUSPEND_HYBRID:	mode = data;
-						return count;
+			suspend_mode = data;
+			return count;
 		default:
 			return -EINVAL;
 	}
+#else
+	return count;
+#endif
 }
 
 static struct kobj_attribute power_suspend_mode_attribute =
@@ -259,13 +267,11 @@ static struct attribute_group power_suspend_attr_group =
 };
 
 static struct kobject *power_suspend_kobj;
-#endif
 
 /* ------------------ sysfs interface ----------------------- */
 static int __init power_suspend_init(void)
 {
 
-#if 0 /* do not export controls, this mode is not for users to play with. */
 	int sysfs_result;
 
         power_suspend_kobj = kobject_create_and_add("power_suspend",
@@ -283,7 +289,6 @@ static int __init power_suspend_init(void)
                 kobject_put(power_suspend_kobj);
                 return -ENOMEM;
         }
-#endif
 	suspend_work_queue = create_singlethread_workqueue("p-suspend");
 
 	if (suspend_work_queue == NULL) {
@@ -291,21 +296,18 @@ static int __init power_suspend_init(void)
 	}
 
 #if 0 /* INFO */
-	mode = POWER_SUSPEND_AUTOSLEEP;	/* Yank555.lu : Default to autosleep mode */
-	mode = POWER_SUSPEND_USERSPACE;	/* Yank555.lu : Default to userspace mode */
-	mode = POWER_SUSPEND_PANEL;	/* Yank555.lu : Default to display panel mode */
+	suspend_mode = POWER_SUSPEND_USERSPACE;	/* Yank555.lu : Default to userspace suspend_mode */
+	suspend_mode = POWER_SUSPEND_PANEL;	/* Yank555.lu : Default to display panel suspend_mode */
 #endif
-	mode = POWER_SUSPEND_HYBRID;	/* Yank555.lu : Default to display panel / autosleep hybrid mode */
+	suspend_mode = POWER_SUSPEND_AUTOSLEEP; /* Yank555.lu : Default to autosleep suspend_mode */
 
 	return 0;
 }
 
 static void __exit power_suspend_exit(void)
 {
-#if 0 /* not created in the INIT above */
 	if (power_suspend_kobj != NULL)
 		kobject_put(power_suspend_kobj);
-#endif
 	destroy_workqueue(suspend_work_queue);
 } 
 
@@ -316,4 +318,3 @@ MODULE_AUTHOR("Paul Reioux <reioux@gmail.com> / Jean-Pierre Rasquin <yank555.lu@
 MODULE_DESCRIPTION("power_suspend - A replacement kernel PM driver for"
         "Android's deprecated early_suspend/late_resume PM driver!");
 MODULE_LICENSE("GPL v2");
-

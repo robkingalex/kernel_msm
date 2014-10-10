@@ -31,7 +31,7 @@
 #include <mach/board.h>
 #include <linux/uaccess.h>
 #include <mach/iommu_domains.h>
-#include <linux/powersuspend.h>
+
 #include <linux/workqueue.h>
 #include <linux/string.h>
 #include <linux/version.h>
@@ -52,12 +52,15 @@
 #include "mdp.h"
 #include "mdp4.h"
 
-#ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
-#define MSM_FB_NUM	3
+#ifdef CONFIG_LCD_NOTIFY
+#include <linux/lcd_notify.h>
+#endif
+#ifdef CONFIG_POWERSUSPEND
+#include <linux/powersuspend.h>
 #endif
 
-#ifdef CONFIG_POWERSUSPEND
-#undef CONFIG_POWERSUSPEND
+#ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
+#define MSM_FB_NUM	3
 #endif
 
 static unsigned char *fbram;
@@ -570,6 +573,14 @@ static int msm_fb_suspend(struct platform_device *pdev, pm_message_t state)
 		fb_set_suspend(mfd->fbi, FBINFO_STATE_RUNNING);
 	} else {
 		pdev->dev.power.power_state = state;
+#if defined(CONFIG_MACH_LGE)
+		lcd_notifier_call_chain(LCD_EVENT_OFF_END, NULL);
+#endif
+#ifdef CONFIG_POWERSUSPEND
+		if (suspend_mode == 2)
+			set_power_suspend_state_panel_hook(
+				POWER_SUSPEND_ACTIVE);
+#endif
 	}
 
 	console_unlock();
@@ -699,6 +710,14 @@ static int msm_fb_resume(struct platform_device *pdev)
 	ret = msm_fb_resume_sub(mfd);
 	pdev->dev.power.power_state = PMSG_ON;
 	fb_set_suspend(mfd->fbi, FBINFO_STATE_RUNNING);
+#ifdef CONFIG_LCD_NOTIFY
+	lcd_notifier_call_chain(LCD_EVENT_ON_END, NULL);
+#endif
+#ifdef CONFIG_POWERSUSPEND
+	if (suspend_mode == 2)
+		set_power_suspend_state_panel_hook(
+			POWER_SUSPEND_INACTIVE);
+#endif
 	console_unlock();
 
 	return ret;

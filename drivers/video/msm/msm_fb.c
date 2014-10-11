@@ -93,10 +93,10 @@ static struct ion_client *iclient;
 
 u32 msm_fb_debug_enabled;
 /* Setting msm_fb_msg_level to 8 prints out ALL messages */
-u32 msm_fb_msg_level = 7;
+u32 msm_fb_msg_level = 0;
 
 /* Setting mddi_msg_level to 8 prints out ALL messages */
-u32 mddi_msg_level = 5;
+u32 mddi_msg_level = 0;
 
 extern int32 mdp_block_power_cnt[MDP_MAX_BLOCK];
 extern unsigned long mdp_timer_duration;
@@ -104,7 +104,6 @@ extern unsigned long mdp_timer_duration;
 static int msm_fb_register(struct msm_fb_data_type *mfd);
 static int msm_fb_open(struct fb_info *info, int user);
 static int msm_fb_release(struct fb_info *info, int user);
-static int msm_fb_release_all(struct fb_info *info, boolean is_all);
 static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info);
 static int msm_fb_stop_sw_refresher(struct msm_fb_data_type *mfd);
@@ -388,18 +387,6 @@ static void msm_fb_remove_sysfs(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
 	sysfs_remove_group(&mfd->fbi->dev->kobj, &msm_fb_attr_group);
-}
-
-static void msm_fb_shutdown(struct platform_device *pdev)
-{
-       struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
-       if (IS_ERR_OR_NULL(mfd)) {
-               pr_err("MFD is Null");
-               return;
-       }
-       lock_fb_info(mfd->fbi);
-       msm_fb_release_all(mfd->fbi, true);
-       unlock_fb_info(mfd->fbi);
 }
 
 static int msm_fb_probe(struct platform_device *pdev)
@@ -840,7 +827,7 @@ static struct platform_driver msm_fb_driver = {
 	.suspend = msm_fb_suspend,
 	.resume = msm_fb_resume,
 #endif
-	.shutdown = msm_fb_shutdown,
+	.shutdown = NULL,
 	.driver = {
 		   /* Driver name must match the device name added in platform.c. */
 		   .name = "msm_fb",
@@ -1833,7 +1820,7 @@ static void msm_fb_free_base_pipe(struct msm_fb_data_type *mfd)
 	return 	mdp4_overlay_free_base_pipe(mfd);
 }
 
-static int msm_fb_release_all(struct fb_info *info, boolean is_all)
+static int msm_fb_release(struct fb_info *info, int user)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	int ret = 0;
@@ -1844,23 +1831,10 @@ static int msm_fb_release_all(struct fb_info *info, boolean is_all)
 		return -EINVAL;
 	}
 	msm_fb_pan_idle(mfd);
-
-	do {
-	        mfd->ref_cnt--;
-		pm_runtime_put(info->dev);
-	} while (is_all && mfd->ref_cnt);
+	mfd->ref_cnt--;
 
 	if (!mfd->ref_cnt) {
 		if (mfd->op_enable) {
-#if 0
-			if (info->node == 0) {
-				down(&mfd->sem);
-				bl_level = mfd->bl_level;
-				msm_fb_set_backlight(mfd, 0);
-				unset_bl_level = bl_level;
-				up(&mfd->sem);
-			}
-#endif
 			ret = msm_fb_blank_sub(FB_BLANK_POWERDOWN, info,
 							mfd->op_enable);
 			if (ret != 0) {
@@ -1872,11 +1846,8 @@ static int msm_fb_release_all(struct fb_info *info, boolean is_all)
 		}
 	}
 
+	pm_runtime_put(info->dev);
 	return ret;
-}
-static int msm_fb_release(struct fb_info *info, int user)
-{
-        return msm_fb_release_all(info, false);
 }
 
 void msm_fb_wait_for_fence(struct msm_fb_data_type *mfd)

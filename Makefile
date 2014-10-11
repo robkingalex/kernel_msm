@@ -359,38 +359,15 @@ PERL		= perl
 CHECK		= sparse
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
-		  -Wbitwise -Wno-return-void $(CF)
-
-MODFLAGS        = -DMODULE \
-                  -mfpu=neon-vfpv4 \
-                  -mtune=cortex-a15 \
-                  -Ofast \
-                  -fgcse-las \
-                  -fpredictive-commoning
-
-CFLAGS_MODULE   = $(MODFLAGS)
-AFLAGS_MODULE   = $(MODFLAGS)
-LDFLAGS_MODULE  = -T $(srctree)/scripts/module-common.lds
-CFLAGS_KERNEL   = -mfpu=neon-vfpv4 \
-                  -mtune=cortex-a15 \
-                  -O2 \
-                  -fgcse-las \
-                  -fpredictive-commoning \
-		  -Wno-error=implicit-function-declaration
-ifeq ($(ENABLE_GRAPHITE),true)
-CFLAGS_KERNEL	+= -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
-endif
-AFLAGS_KERNEL	= -mfpu=neon-vfpv4 \
-                  -mtune=cortex-a15 \
-                  -O2 \
-                  -fgcse-las \
-                  -fpredictive-commoning \
-		  -Wno-error=implicit-function-declaration
-ifeq ($(ENABLE_GRAPHITE),true)
-AFLAGS_KERNEL	+= -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
-endif
-CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
-
+		   -Wbitwise -Wno-return-void $(CF)
+KERNEL_FLAGS 	=  -Ofast -munaligned-access -fgcse-lm -fgcse-sm -fsched-spec-load -fforce-addr -fsingle-precision-constant -mcpu=cortex-a15 -mtune=cortex-a15 -marm -mfpu=neon-vfpv4 -ftree-vectorize -mvectorize-with-neon-quad -funroll-loops -ftree-loop-im -ftree-loop-ivcanon -fgcse-las -fmodulo-sched -fivopts
+MOD_FLAGS 	= -DMODULE $(KERNEL_FLAGS)
+CFLAGS_MODULE 	= $(MODFLAGS) -Ofast
+AFLAGS_MODULE 	= $(MODFLAGS) -Ofast
+LDFLAGS_MODULE 	= -T $(srctree)/scripts/module-common.lds
+CFLAGS_KERNEL  	= $(MODFLAGS) -O2
+AFLAGS_KERNEL 	= $(MODFLAGS) -O2
+CFLAGS_GCOV   	= -fprofile-arcs -ftest-coverage
 
 # Use LINUXINCLUDE when you must reference the include/ directory.
 # Needed to be compatible with the O= option
@@ -401,19 +378,27 @@ LINUXINCLUDE    := -I$(srctree)/arch/$(hdr-arch)/include \
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 
+#
+# LINARO OPT
+#
+CFLAGS_A15 	= -mcpu=cortex-a15 -mtune=cortex-a15 -mfpu=neon-vfpv4 -fgcse-las -marm
+CFLAGS_MODULO 	= -fmodulo-sched -fmodulo-sched-allow-regmoves
+KERNEL_MODS 	= $(CFLAGS_A15) $(CFLAGS_MODULO)
 KBUILD_CFLAGS   := -Wall -DNDEBUG -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -Wno-sizeof-pointer-memaccess \
 		   -mno-unaligned-access \
-		   -fno-delete-null-pointer-checks \
-		   -pipe
-KBUILD_AFLAGS_KERNEL :=
-KBUILD_CFLAGS_KERNEL :=
+           -ftree-vectorize \
+		   -pipe \
+		   $(KERNEL_MODS)
+
+KBUILD_AFLAGS_KERNEL := 
+KBUILD_CFLAGS_KERNEL := $(KERNEL_MODS)
 KBUILD_AFLAGS   := -D__ASSEMBLY__
 KBUILD_AFLAGS_MODULE  := -DMODULE
-KBUILD_CFLAGS_MODULE  := -DMODULE
+KBUILD_CFLAGS_MODULE  := -DMODULE $(KERNEL_MODS)
 KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
 
 # Read KERNELRELEASE from include/config/kernel.release (if it exists)

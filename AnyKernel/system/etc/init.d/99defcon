@@ -162,7 +162,6 @@ fi
 #FS DELAY WRITEBACKS MODE
 # This command delays auto fs writebacks  or file system bits cached in RAM while Screen is ON. Enable this feature for better performance.  Note this adds a slight risk of possible data loss if you phone crashes while screen is on.
 echo "0" > /proc/sys/vm/laptop_mode
-
+echo "0" > /sys/kernel/sched/arch_power
 echo "0" > /sys/kernel/sched/gentle_fair_sleepers
-echo "1" > /sys/kernel/sched/arch_power
 	echo "[defcon] Tweaks completed!" | tee /dev/kmsg

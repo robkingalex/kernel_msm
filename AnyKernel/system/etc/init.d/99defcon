@@ -20,7 +20,7 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "40" > /sys/module/cpu_boost/parameters/input_boost_ms
 	echo "918000" > /sys/module/cpu_boost/parameters/input_boost_freq
 	echo "[defcon] input boost enabled!" | tee /dev/kmsg
-	echo 1 > /sys/module/cpu_boost/parameters/hotplug_boost
+	echo 0 > /sys/module/cpu_boost/parameters/hotplug_boost
 
 
 # Neobuddy Intelliplug options

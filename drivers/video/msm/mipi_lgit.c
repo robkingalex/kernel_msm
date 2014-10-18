@@ -20,12 +20,19 @@
 #include <linux/string.h>
 #include <linux/gpio.h>
 #include <linux/syscore_ops.h>
+#ifdef CONFIG_FB_MSM_LCD_NOTIFY
+#include <linux/lcd_notify.h>
+#endif
+
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 #include "msm_fb.h"
 #include "mipi_dsi.h"
 #include "mipi_lgit.h"
 #include "mdp4.h"
+#ifdef CONFIG_POWERSUSPEND
+#include <linux/powersuspend.h>
+#endif
 
 static struct msm_panel_common_pdata *mipi_lgit_pdata;
 
@@ -73,6 +80,12 @@ static int mipi_lgit_lcd_on(struct platform_device *pdev)
 	struct msm_fb_data_type *mfd;
 	int ret = 0;
 
+#ifdef CONFIG_FB_MSM_LCD_NOTIFY
+	lcd_notifier_call_chain(LCD_EVENT_ON_START, NULL);
+#endif
+#ifdef CONFIG_POWERSUSPEND
+	set_power_suspend_state_panel_hook(POWER_SUSPEND_INACTIVE);
+#endif
 	pr_info("%s started\n", __func__);
 
 	mfd = platform_get_drvdata(pdev);
@@ -121,6 +134,12 @@ static int mipi_lgit_lcd_on(struct platform_device *pdev)
 		return ret;
 	}
 
+#ifdef CONFIG_FB_MSM_LCD_NOTIFY
+	lcd_notifier_call_chain(LCD_EVENT_ON_END, NULL);
+#endif
+#ifdef CONFIG_POWERSUSPEND
+	set_power_suspend_state_panel_hook(POWER_SUSPEND_INACTIVE);
+#endif
 	lcd_isactive = 1;
 
 	pr_info("%s finished\n", __func__);
@@ -132,6 +151,12 @@ static int mipi_lgit_lcd_off(struct platform_device *pdev)
 	struct msm_fb_data_type *mfd;
 	int ret = 0;
 
+#ifdef CONFIG_FB_MSM_LCD_NOTIFY
+	lcd_notifier_call_chain(LCD_EVENT_OFF_START, NULL);
+#endif
+#ifdef CONFIG_POWERSUSPEND
+	set_power_suspend_state_panel_hook(POWER_SUSPEND_ACTIVE);
+#endif
 	pr_info("%s started\n", __func__);
 
 	lcd_isactive = 0;
@@ -173,6 +198,12 @@ static int mipi_lgit_lcd_off(struct platform_device *pdev)
 		return ret;
 	}
 
+#ifdef CONFIG_FB_MSM_LCD_NOTIFY
+	lcd_notifier_call_chain(LCD_EVENT_OFF_END, NULL);
+#endif
+#ifdef CONFIG_POWERSUSPEND
+	set_power_suspend_state_panel_hook(POWER_SUSPEND_ACTIVE);
+#endif
 	pr_info("%s finished\n", __func__);
 	return 0;
 }

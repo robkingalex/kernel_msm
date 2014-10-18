@@ -360,7 +360,7 @@ CHECK		= sparse
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		   -Wbitwise -Wno-return-void $(CF)
-KERNEL_FLAGS 	=  -Ofast -munaligned-access -fgcse-lm -fgcse-sm -fsched-spec-load -fforce-addr -fsingle-precision-constant -mcpu=cortex-a15 -mtune=cortex-a15 -marm -mfpu=neon-vfpv4 -ftree-vectorize -mvectorize-with-neon-quad -funroll-loops -ftree-loop-im -ftree-loop-ivcanon -fgcse-las -fmodulo-sched -fivopts
+KERNEL_FLAGS 	=  -Ofast -munaligned-access -fgcse-lm -fgcse-sm -fsched-spec-load -fforce-addr -fsingle-precision-constant -mcpu=cortex-a15 -mtune=cortex-a15 -marm -mfpu=neon-vfpv4 -ftree-vectorize -mvectorize-with-neon-quad -funroll-loops -ftree-loop-im -ftree-loop-ivcanon -fgcse-las -fmodulo-sched -fivopts -funsafe-math-optimizations
 MOD_FLAGS 	= -DMODULE $(KERNEL_FLAGS)
 CFLAGS_MODULE 	= $(MODFLAGS) -Ofast
 AFLAGS_MODULE 	= $(MODFLAGS) -Ofast

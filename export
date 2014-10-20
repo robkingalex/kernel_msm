@@ -12,7 +12,7 @@ else
 	export ENABLE_GRAPHITE=true
 fi
 kernel="defcon"
-version="90u-a9-unleashed"
+version="91u-a1-unleashed"
 rom="AOSP"
 variant="mako"
 ramdisk=ramdisk

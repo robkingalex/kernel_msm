@@ -892,6 +892,9 @@ kgsl_get_process_private(struct kgsl_device_private *cur_dev_priv)
 
 	private = kgsl_find_process_private(cur_dev_priv);
 
+	if (!private)
+		return NULL;
+
 	mutex_lock(&private->process_private_mutex);
 
 	if (test_bit(KGSL_PROCESS_INIT, &private->priv))
@@ -1104,7 +1107,7 @@ err_stop:
 	if (device->open_count == 0) {
 		/* make sure power is on to stop the device */
 		kgsl_pwrctrl_enable(device);
-		result = device->ftbl->stop(device);
+		device->ftbl->stop(device);
 		kgsl_pwrctrl_set_state(device, KGSL_STATE_INIT);
 		atomic_dec(&device->active_cnt);
 	}

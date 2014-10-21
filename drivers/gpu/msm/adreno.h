@@ -38,6 +38,7 @@
 #define KGSL_CMD_FLAGS_PMODE		BIT(0)
 #define KGSL_CMD_FLAGS_INTERNAL_ISSUE   BIT(1)
 #define KGSL_CMD_FLAGS_WFI              BIT(2)
+#define KGSL_CMD_FLAGS_PWRON_FIXUP      BIT(3)
 
 /* Command identifiers */
 #define KGSL_CONTEXT_TO_MEM_IDENTIFIER	0x2EADBEEF
@@ -47,6 +48,7 @@
 #define KGSL_END_OF_IB_IDENTIFIER	0x2ABEDEAD
 #define KGSL_END_OF_FRAME_IDENTIFIER	0x2E0F2E0F
 #define KGSL_NOP_IB_IDENTIFIER	        0x20F20F20
+#define KGSL_PWRON_FIXUP_IDENTIFIER	0x2AFAFAFA
 
 #ifdef CONFIG_MSM_SCM
 #define ADRENO_DEFAULT_PWRSCALE_POLICY  (&kgsl_pwrscale_policy_tz)
@@ -55,6 +57,8 @@
 #else
 #define ADRENO_DEFAULT_PWRSCALE_POLICY  NULL
 #endif
+
+void adreno_debugfs_init(struct kgsl_device *device);
 
 #define ADRENO_ISTORE_START 0x5000 /* Istore offset */
 
@@ -181,8 +185,11 @@ struct adreno_device {
 	unsigned int ocmem_base;
 	unsigned int gpu_cycles;
 	struct adreno_dispatcher dispatcher;
+	struct kgsl_memdesc pwron_fixup;
+	unsigned int pwron_fixup_dwords;
 
 	struct work_struct start_work;
+	struct work_struct input_work;
 };
 
 /**
@@ -415,9 +422,7 @@ struct log_field {
 	{ BIT(KGSL_FT_TEMP_DISABLE), "temp" }, \
 	{ BIT(KGSL_FT_THROTTLE), "throttle"}
 
-extern struct adreno_gpudev adreno_a2xx_gpudev;
 extern struct adreno_gpudev adreno_a3xx_gpudev;
-extern struct adreno_gpudev adreno_a4xx_gpudev;
 
 /* A2XX register sets defined in adreno_a2xx.c */
 extern const unsigned int a200_registers[];
@@ -509,6 +514,7 @@ int adreno_perfcounter_put(struct adreno_device *adreno_dev,
 
 int adreno_soft_reset(struct kgsl_device *device);
 
+int adreno_a3xx_pwron_fixup_init(struct adreno_device *adreno_dev);
 
 static inline int adreno_is_a200(struct adreno_device *adreno_dev)
 {
@@ -872,10 +878,19 @@ static inline void adreno_vbif_start(struct kgsl_device *device,
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
-void adreno_debugfs_init(struct kgsl_device *device);
-#else
-static inline void adreno_debugfs_init(struct kgsl_device *device) { }
-#endif
+/**
+ * adreno_get_rptr() - Get the current ringbuffer read pointer
+ * @rb: Pointer the ringbuffer to query
+ *
+ * Get the current read pointer from the GPU register.
+ */
+static inline unsigned int
+adreno_get_rptr(struct adreno_ringbuffer *rb)
+{
+	struct adreno_device *adreno_dev = ADRENO_DEVICE(rb->device);
+	unsigned int result;
+	adreno_readreg(adreno_dev, ADRENO_REG_CP_RB_RPTR, &result);
+	return result;
+}
 
 #endif /*__ADRENO_H */

@@ -645,7 +645,6 @@ static int kgsl_suspend_device(struct kgsl_device *device, pm_message_t state)
 		case KGSL_STATE_SLEEP:
 			/* make sure power is on to stop the device */
 			kgsl_pwrctrl_enable(device);
-			kgsl_pwrctrl_irq(device, KGSL_PWRFLAGS_ON);
 			/* Get the completion ready to be waited upon. */
 			INIT_COMPLETION(device->hwaccess_gate);
 			device->ftbl->suspend_context(device);
@@ -897,7 +896,11 @@ kgsl_get_process_private(struct kgsl_device_private *cur_dev_priv)
 
 	mutex_lock(&private->process_private_mutex);
 
-	if (test_bit(KGSL_PROCESS_INIT, &private->priv))
+	/*
+	 * If debug root initialized then it means the rest of the fields
+	 * are also initialized
+	 */
+	if (private->debug_root)
 		goto done;
 
 	private->mem_rb = RB_ROOT;
@@ -917,8 +920,6 @@ kgsl_get_process_private(struct kgsl_device_private *cur_dev_priv)
 		goto error;
 	if (kgsl_process_init_debugfs(private))
 		goto error;
-
-	set_bit(KGSL_PROCESS_INIT, &private->priv);
 
 done:
 	mutex_unlock(&private->process_private_mutex);
@@ -3649,7 +3650,7 @@ err_put:
 static inline bool
 mmap_range_valid(unsigned long addr, unsigned long len)
 {
-	return ((ULONG_MAX - addr) > len) && ((addr + len) < TASK_SIZE);
+	return (addr + len) > addr && (addr + len) < TASK_SIZE;
 }
 
 static unsigned long
@@ -4313,4 +4314,3 @@ module_exit(kgsl_core_exit);
 MODULE_AUTHOR("Qualcomm Innovation Center, Inc.");
 MODULE_DESCRIPTION("MSM GPU driver");
 MODULE_LICENSE("GPL");
-

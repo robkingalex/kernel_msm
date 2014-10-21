@@ -2303,16 +2303,3 @@ const struct adreno_reg_offsets a2xx_reg_offsets = {
 void *a2xx_snapshot(struct adreno_device *adreno_dev, void *snapshot,
 	int *remain, int hang);
 
-struct adreno_gpudev adreno_a2xx_gpudev = {
-	.reg_offsets = &a2xx_reg_offsets,
-
-	.ctxt_create = a2xx_drawctxt_create,
-	.irq_handler = a2xx_irq_handler,
-	.irq_control = a2xx_irq_control,
-	.irq_pending = a2xx_irq_pending,
-	.snapshot = a2xx_snapshot,
-	.rb_init = a2xx_rb_init,
-	.busy_cycles = a2xx_busy_cycles,
-	.start = a2xx_start,
-	.postmortem_dump = a2xx_postmortem_dump,
-};

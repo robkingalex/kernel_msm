@@ -65,6 +65,8 @@
 #define KGSL_EVENT_TIMESTAMP_RETIRED 0
 #define KGSL_EVENT_CANCELLED 1
 
+#define KGSL_FLAG_WAKE_ON_TOUCH BIT(0)
+
 /*
  * "list" of event types for ftrace symbolic magic
  */
@@ -365,7 +367,6 @@ struct kgsl_process_private;
  * is set.
  * @fault_count: number of times gpu hanged in last _context_throttle_time ms
  * @fault_time: time of the first gpu hang in last _context_throttle_time ms
->>>>>>> 28ee7f6... msm: kgsl: Enhance GFT to avoid hang->recover->hang cycle
  */
 struct kgsl_context {
 	struct kref refcount;
@@ -385,23 +386,8 @@ struct kgsl_context {
 	unsigned long fault_time;
 };
 
-/**
- * struct kgsl_process_private -  Private structure for a KGSL process (across
- * all devices)
- * @priv: Internal flags, use KGSL_PROCESS_* values
- * @pid: ID for the task owner of the process
- * @mem_lock: Spinlock to protect the process memory lists
- * @refcount: kref object for reference counting the process
- * @process_private_mutex: Mutex to synchronize access to the process struct
- * @mem_rb: RB tree node for the memory owned by this process
- * @idr: Iterator for assigning IDs to memory allocations
- * @pagetable: Pointer to the pagetable owned by this process
- * @kobj: Pointer to a kobj for the sysfs directory for this process
- * @debug_root: Pointer to the debugfs root for this process
- * @stats: Memory allocation statistics for this process
- */
 struct kgsl_process_private {
-	unsigned long priv;
+	unsigned int refcnt;
 	pid_t pid;
 	spinlock_t mem_lock;
 
@@ -421,14 +407,6 @@ struct kgsl_process_private {
 		unsigned int cur;
 		unsigned int max;
 	} stats[KGSL_MEM_ENTRY_MAX];
-};
-
-/**
- * enum kgsl_process_priv_flags - Private flags for kgsl_process_private
- * @KGSL_PROCESS_INIT: Set if the process structure has been set up
- */
-enum kgsl_process_priv_flags {
-	KGSL_PROCESS_INIT = 0,
 };
 
 struct kgsl_device_private {
@@ -768,9 +746,11 @@ static inline void kgsl_trace_gpu_sched_switch(const char *name,
 /**
  * kgsl_sysfs_store() - parse a string from a sysfs store function
  * @buf: Incoming string to parse
+ * @count: Size of the incoming string
  * @ptr: Pointer to an unsigned int to store the value
  */
-static inline int kgsl_sysfs_store(const char *buf, unsigned int *ptr)
+static inline ssize_t kgsl_sysfs_store(const char *buf, size_t count,
+		unsigned int *ptr)
 {
 	unsigned int val;
 	int rc;
@@ -782,6 +762,6 @@ static inline int kgsl_sysfs_store(const char *buf, unsigned int *ptr)
 	if (ptr)
 		*ptr = val;
 
-	return 0;
+	return count;
 }
 #endif  /* __KGSL_DEVICE_H */

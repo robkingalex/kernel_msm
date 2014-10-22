@@ -23,6 +23,7 @@
 #include "kgsl.h"
 #include "kgsl_pwrscale.h"
 #include "kgsl_device.h"
+#include "kgsl_trace.h"
 
 #define TZ_GOVERNOR_PERFORMANCE 0
 #define TZ_GOVERNOR_ONDEMAND    1
@@ -212,7 +213,25 @@ static void tz_idle(struct kgsl_device *device, struct kgsl_pwrscale *pwrscale)
 
 	priv->bin.total_time = 0;
 	priv->bin.busy_time = 0;
-	window_time = jiffies;
+
+	/* If the decision is to move to a lower level, make sure the GPU
+	 * frequency drops.
+	 */
+	if (val > 0)
+		val *= pwr->step_mul;
+
+	if (val) {
+		kgsl_pwrctrl_pwrlevel_change(device,
+					     pwr->active_pwrlevel + val);
+		if (pwr->constraint.type != KGSL_CONSTRAINT_NONE) {
+			/* Trace the constraint being un-set by the driver */
+			trace_kgsl_constraint(device,
+				pwr->constraint.type,
+				pwr->active_pwrlevel, 0);
+			/*Invalidate the constraint set */
+			pwr->constraint.type = KGSL_CONSTRAINT_NONE;
+		}
+	}
 }
 
 static void tz_busy(struct kgsl_device *device,

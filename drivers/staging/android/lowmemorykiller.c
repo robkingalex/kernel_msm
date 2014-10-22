@@ -169,6 +169,9 @@ static int test_task_flag(struct task_struct *p, int flag)
 	return 0;
 }
 
+static DEFINE_MUTEX(scan_mutex);
+static DEFINE_MUTEX(auto_oom_mutex);
+
 int can_use_cma_pages(gfp_t gfp_mask)
 {
 	int can_use = 0;
@@ -303,8 +306,6 @@ void tune_lmk_param(int *other_free, int *other_file, struct shrink_control *sc)
 			     "%d\n", *other_free, *other_file);
 	}
 }
-
-static DEFINE_MUTEX(scan_mutex);
 
 #ifdef CONFIG_ANDROID_LMK_ADJ_RBTREE
 static struct task_struct *pick_next_from_adj_tree(struct task_struct *task);
@@ -572,12 +573,22 @@ void could_cswap(void)
 			atomic_set(&s_reclaim.idle_report, 1);
 			prev_jiffy = jiffies;
 		}
+	if (lowmem_auto_oom) {
+		mutex_lock(&auto_oom_mutex);
+		memcpy(lowmem_minfree_screen_on, lowmem_minfree, sizeof(lowmem_minfree));
+		memcpy(lowmem_minfree, lowmem_minfree_screen_off, sizeof(lowmem_minfree_screen_off));
+		mutex_unlock(&auto_oom_mutex);
 	}
 }
 
 inline void enable_soft_reclaim(void)
 {
 	atomic_set(&s_reclaim.kcompcached_enable, 1);
+	if (lowmem_auto_oom) {
+		mutex_lock(&auto_oom_mutex);
+		memcpy(lowmem_minfree, lowmem_minfree_screen_on, sizeof(lowmem_minfree_screen_on));
+		mutex_unlock(&auto_oom_mutex);
+	}
 }
 
 inline void disable_soft_reclaim(void)

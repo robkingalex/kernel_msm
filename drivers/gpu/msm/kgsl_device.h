@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2012,2014 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2002,2007-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,9 +17,6 @@
 #include <linux/idr.h>
 #include <linux/pm_qos.h>
 #include <linux/sched.h>
-#ifdef CONFIG_POWERSUSPEND
-#include <linux/powersuspend.h>
-#endif
 
 #include "kgsl.h"
 #include "kgsl_mmu.h"
@@ -64,6 +61,8 @@
 
 #define KGSL_EVENT_TIMESTAMP_RETIRED 0
 #define KGSL_EVENT_CANCELLED 1
+
+#define KGSL_FLAG_WAKE_ON_TOUCH BIT(0)
 
 /*
  * "list" of event types for ftrace symbolic magic
@@ -130,8 +129,8 @@ struct kgsl_functable {
 	void (*drawctxt_destroy) (struct kgsl_context *context);
 	long (*ioctl) (struct kgsl_device_private *dev_priv,
 		unsigned int cmd, void *data);
-	int (*setproperty) (struct kgsl_device *device,
-		enum kgsl_property_type type, void *value,
+	int (*setproperty) (struct kgsl_device_private *dev_priv,
+		enum kgsl_property_type type, void __user *value,
 		unsigned int sizebytes);
 	int (*postmortem_dump) (struct kgsl_device *device, int manual);
 	void (*drawctxt_sched)(struct kgsl_device *device,
@@ -264,7 +263,6 @@ struct kgsl_device {
 	struct device *parentdev;
 	struct dentry *d_debugfs;
 	struct idr context_idr;
-	struct power_suspend display_off;
 	rwlock_t context_lock;
 
 	void *snapshot;		/* Pointer to the snapshot memory region */
@@ -315,7 +313,6 @@ struct kgsl_device {
 };
 
 void kgsl_process_events(struct work_struct *work);
-void kgsl_check_fences(struct work_struct *work);
 
 #define KGSL_DEVICE_COMMON_INIT(_dev) \
 	.hwaccess_gate = COMPLETION_INITIALIZER((_dev).hwaccess_gate),\
@@ -363,6 +360,10 @@ struct kgsl_process_private;
  * @pagefault: flag set if this context caused a pagefault.
  * @pagefault_ts: global timestamp of the pagefault, if KGSL_CONTEXT_PAGEFAULT
  * is set.
+ * @flags: flags from userspace controlling the behavior of this context
+ * @fault_count: number of times gpu hanged in last _context_throttle_time ms
+ * @fault_time: time of the first gpu hang in last _context_throttle_time ms
+ * @pwr_constraint: power constraint from userspace for this context
  */
 struct kgsl_context {
 	struct kref refcount;
@@ -378,6 +379,10 @@ struct kgsl_context {
 	struct list_head events;
 	struct list_head events_list;
 	unsigned int pagefault_ts;
+	unsigned int flags;
+	unsigned int fault_count;
+	unsigned long fault_time;
+	struct kgsl_pwr_constraint pwr_constraint;
 };
 
 /**
@@ -658,7 +663,7 @@ static inline int _kgsl_context_get(struct kgsl_context *context)
  * Find the context associated with the given ID number, increase the reference
  * count on it and return it.  The caller must make sure that this call is
  * paired with a kgsl_context_put. This function validates that the context id
- * given is owned by the dev_priv instancet that is passed in.  see
+ * given is owned by the dev_priv instancet that is passed in.  See
  * kgsl_context_get for the internal version that doesn't do the check
  */
 static inline struct kgsl_context *kgsl_context_get_owner(
@@ -709,6 +714,24 @@ void kgsl_cmdbatch_destroy(struct kgsl_cmdbatch *cmdbatch);
 void kgsl_cmdbatch_destroy_object(struct kref *kref);
 
 /**
+* kgsl_process_private_get() - increment the refcount on a kgsl_process_private
+*   struct
+* @process: Pointer to the KGSL process_private
+*
+* Returns 0 if the structure is invalid and a reference count could not be
+* obtained, nonzero otherwise.
+*/
+static inline int kgsl_process_private_get(struct kgsl_process_private *process)
+{
+	int ret = 0;
+	if (process != NULL)
+		ret = kref_get_unless_zero(&process->refcount);
+	return ret;
+}
+
+void kgsl_process_private_put(struct kgsl_process_private *private);
+
+/**
  * kgsl_cmdbatch_put() - Decrement the refcount for a command batch object
  * @cmdbatch: Pointer to the command batch object
  */
@@ -727,7 +750,16 @@ static inline void kgsl_cmdbatch_put(struct kgsl_cmdbatch *cmdbatch)
  */
 static inline int kgsl_cmdbatch_sync_pending(struct kgsl_cmdbatch *cmdbatch)
 {
-	return list_empty(&cmdbatch->synclist) ? 0 : 1;
+	int ret;
+
+	if (cmdbatch == NULL)
+		return 0;
+
+	spin_lock(&cmdbatch->lock);
+	ret = list_empty(&cmdbatch->synclist) ? 0 : 1;
+	spin_unlock(&cmdbatch->lock);
+
+	return ret;
 }
 
 #if defined(CONFIG_GPU_TRACEPOINTS)
@@ -763,9 +795,11 @@ static inline void kgsl_trace_gpu_sched_switch(const char *name,
 /**
  * kgsl_sysfs_store() - parse a string from a sysfs store function
  * @buf: Incoming string to parse
+ * @count: Size of the incoming string
  * @ptr: Pointer to an unsigned int to store the value
  */
-static inline int kgsl_sysfs_store(const char *buf, unsigned int *ptr)
+static inline ssize_t kgsl_sysfs_store(const char *buf, size_t count,
+		unsigned int *ptr)
 {
 	unsigned int val;
 	int rc;
@@ -777,6 +811,6 @@ static inline int kgsl_sysfs_store(const char *buf, unsigned int *ptr)
 	if (ptr)
 		*ptr = val;
 
-	return 0;
+	return count;
 }
 #endif  /* __KGSL_DEVICE_H */

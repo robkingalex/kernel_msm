@@ -12,6 +12,7 @@
  */
 
 #include <linux/vmalloc.h>
+#include <mach/board.h>
 
 #include "kgsl.h"
 #include "kgsl_sharedmem.h"
@@ -23,6 +24,7 @@
 #include "kgsl_pwrctrl.h"
 #include "adreno_trace.h"
 
+#include "a2xx_reg.h"
 #include "a3xx_reg.h"
 
 #define INVALID_RB_CMD 0xaaaaaaaa
@@ -50,6 +52,7 @@ static const struct pm_id_name pm3_types[] = {
 	{CP_DRAW_INDX,			"DRW_NDX_"},
 	{CP_DRAW_INDX_BIN,		"DRW_NDXB"},
 	{CP_EVENT_WRITE,		"EVENT_WT"},
+	{CP_MEM_WRITE,			"MEM_WRIT"},
 	{CP_IM_LOAD,			"IN__LOAD"},
 	{CP_IM_LOAD_IMMEDIATE,		"IM_LOADI"},
 	{CP_IM_STORE,			"IM_STORE"},
@@ -600,7 +603,16 @@ int adreno_dump(struct kgsl_device *device, int manual)
 
 	/* Dump the registers if the user asked for it */
 	if (device->pm_regs_enabled) {
-		if (adreno_is_a3xx(adreno_dev)) {
+		if (adreno_is_a20x(adreno_dev))
+			adreno_dump_regs(device, a200_registers,
+					a200_registers_count);
+		else if (adreno_is_a22x(adreno_dev))
+			adreno_dump_regs(device, a220_registers,
+					a220_registers_count);
+		else if (adreno_is_a225(adreno_dev))
+			adreno_dump_regs(device, a225_registers,
+				a225_registers_count);
+		else if (adreno_is_a3xx(adreno_dev)) {
 			adreno_dump_regs(device, a3xx_registers,
 					a3xx_registers_count);
 

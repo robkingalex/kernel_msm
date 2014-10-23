@@ -1271,6 +1271,7 @@ static int msm_close(struct file *f)
 /*                                                                */
 			pmctl->mctl_release(pmctl);
 			pmctl->mctl_release = NULL;
+		}
 //                                                                                
 #if !defined(CONFIG_LGE_GK_CAMERA)
 		pmctl->mctl_release = NULL;

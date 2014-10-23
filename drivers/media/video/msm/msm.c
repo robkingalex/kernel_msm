@@ -1266,10 +1266,11 @@ static int msm_close(struct file *f)
 #if defined(CONFIG_LGE_GK_CAMERA)
 		if (pmctl != NULL && pmctl->mctl_release)
 #else
-		if (pmctl->mctl_release)
+		if (pmctl->mctl_release) {
 #endif
 /*                                                                */
 			pmctl->mctl_release(pmctl);
+			pmctl->mctl_release = NULL;
 //                                                                                
 #if !defined(CONFIG_LGE_GK_CAMERA)
 		pmctl->mctl_release = NULL;

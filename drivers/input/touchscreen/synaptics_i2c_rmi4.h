@@ -27,11 +27,7 @@
 #define SYNAPTICS_DSX_DRIVER_VERSION 0x1005
 
 #include <linux/version.h>
-
-#ifdef CONFIG_FB
-#include <linux/notifier.h>
-#include <linux/fb.h>
-#elif defined CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
 
@@ -44,6 +40,7 @@
 
 #define SYNAPTICS_RMI4_F01 (0x01)
 #define SYNAPTICS_RMI4_F11 (0x11)
+#define SYNAPTICS_RMI4_F12 (0x12)
 #define SYNAPTICS_RMI4_F1A (0x1a)
 #define SYNAPTICS_RMI4_F34 (0x34)
 #define SYNAPTICS_RMI4_F54 (0x54)
@@ -82,9 +79,12 @@ struct synaptics_rmi4_fn_desc {
 	unsigned char cmd_base_addr;
 	unsigned char ctrl_base_addr;
 	unsigned char data_base_addr;
-	unsigned char intr_src_count;
+	unsigned char intr_src_count:3;
+	unsigned char reserved_b3_b4:2;
+	unsigned char version:2;
+	unsigned char reserved_b7:1;
 	unsigned char fn_number;
-};
+} __packed;
 
 /*
  * synaptics_rmi4_fn_full_addr - full 16-bit base addresses
@@ -126,6 +126,7 @@ struct synaptics_rmi4_fn {
 	struct list_head link;
 	int data_size;
 	void *data;
+	void *extra;
 };
 
 /*
@@ -197,8 +198,12 @@ struct synaptics_rmi4_data {
 	struct regulator *vdd;
 	struct regulator *vcc_i2c;
 	struct mutex rmi4_io_ctrl_mutex;
+	struct mutex rmi4_reset_mutex;
 	struct delayed_work det_work;
 	struct workqueue_struct *det_workqueue;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend early_suspend;
+#endif
 	const char *fw_image_name;
 	unsigned char current_page;
 	unsigned char button_0d_enabled;
@@ -206,6 +211,8 @@ struct synaptics_rmi4_data {
 	unsigned char num_of_rx;
 	unsigned char num_of_tx;
 	unsigned char num_of_fingers;
+	unsigned char max_touch_width;
+	unsigned char report_enable;
 	unsigned char intr_mask[MAX_INTR_REGISTERS];
 	unsigned short num_of_intr_regs;
 	unsigned short f01_query_base_addr;
@@ -222,19 +229,15 @@ struct synaptics_rmi4_data {
 	bool flip_x;
 	bool flip_y;
 	wait_queue_head_t wait;
+	bool stay_awake;
+	bool staying_awake;
+	unsigned char no_sleep_setting;
 	int (*i2c_read)(struct synaptics_rmi4_data *pdata, unsigned short addr,
 			unsigned char *data, unsigned short length);
 	int (*i2c_write)(struct synaptics_rmi4_data *pdata, unsigned short addr,
 			unsigned char *data, unsigned short length);
 	int (*irq_enable)(struct synaptics_rmi4_data *rmi4_data, bool enable);
 	int (*reset_device)(struct synaptics_rmi4_data *rmi4_data);
-#ifdef CONFIG_FB
-	struct notifier_block fb_notif;
-#else
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct early_suspend early_suspend;
-#endif
-#endif
 };
 
 enum exp_fn {
@@ -258,6 +261,14 @@ void synaptics_rmi4_new_function(enum exp_fn fn_type, bool insert,
 		void (*func_remove)(struct synaptics_rmi4_data *rmi4_data),
 		void (*func_attn)(struct synaptics_rmi4_data *rmi4_data,
 				unsigned char intr_mask));
+
+static inline ssize_t synaptics_rmi4_show_error(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	dev_warn(dev, "%s Attempted to read from write-only attribute %s\n",
+			__func__, attr->attr.name);
+	return -EPERM;
+}
 
 static inline ssize_t synaptics_rmi4_store_error(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)

@@ -50,7 +50,7 @@ unsigned char F54_TxToGndReport(void)
 #endif
 	for (i = 0; i < CFG_F54_TXCOUNT; i++)
 		 ImageArray[i] = 0;
-	
+
    // Set report mode to run Tx-to-GND
    command = 0x10;
    writeRMI(F54_Data_Base, &command, 1);
@@ -98,7 +98,7 @@ unsigned char F54_TxToGndReport(void)
 	ret += sprintf(buf+ret, "0:\t");
 #else	
 	printk("\n");
-	
+
 	printk("0:\t");
 #endif	
 	for (i = 0; i < numberOfTx; i++)
@@ -170,4 +170,3 @@ unsigned char F54_TxToGndReport(void)
 	 }
 }
 #endif
-

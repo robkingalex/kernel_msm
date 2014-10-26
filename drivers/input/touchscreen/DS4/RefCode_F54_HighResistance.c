@@ -58,7 +58,7 @@ unsigned char F54_HighResistance(void)
 		delayMS(1); //wait 1ms
         readRMI(F54_Command_Base, &command, 1);
    } while (command != 0x00);
-	  
+
    command = 0x02;
    writeRMI(F54_Command_Base, &command, 1);
 
@@ -124,7 +124,7 @@ unsigned char F54_HighResistance(void)
 #else
 	printk("\n");
 #endif
-	
+
    // Set the Force Cal
    command = 0x02;
    writeRMI(F54_Command_Base, &command, 1);
@@ -133,7 +133,7 @@ unsigned char F54_HighResistance(void)
 		delayMS(1); //wait 1ms
         readRMI(F54_Command_Base, &command, 1);
    } while (command != 0x00);
-	  
+
    //enable all the interrupts
    //Reset
    command= 0x01;
@@ -163,4 +163,3 @@ unsigned char F54_HighResistance(void)
 	}
 }
 #endif
-

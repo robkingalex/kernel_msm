@@ -71,7 +71,7 @@ unsigned char F54_TxOpenReport(void)
    readRMI(F54_Data_Buffer, &ImageBuffer[0], 4);
 
 //	printk("Buffer : 0x%x 0x%x 0x%x 0x%x \n", ImageBuffer[0], ImageBuffer[1], ImageBuffer[2], ImageBuffer[3]);
-	
+
 	// One bit per transmitter channel
 	k = 0;		
 	for (i = 0; i < CFG_F54_TXCOUNT; i++)
@@ -171,4 +171,3 @@ unsigned char F54_TxOpenReport(void)
 	 }
 }
 #endif
-

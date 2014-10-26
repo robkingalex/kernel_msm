@@ -1214,7 +1214,7 @@ exit_work:
 			ret = synaptics_ts_read(ts->client, DS4_FW_CONFIG_ID_REG, 4, &ts->fw_config_id[0]);
 			if (ret < 0)
 				SYNAPTICS_ERR_MSG("FW config id read fail\n");
-			
+
 			if((ts->fw_config_id[0] == 'E' && my_atoi(&ts->fw_config_id[1]) >= 14)
 					|| (ts->fw_config_id[0] == 'S' && my_atoi(&ts->fw_config_id[1]) >= 2)
 			  )

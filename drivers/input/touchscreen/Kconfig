@@ -485,6 +485,10 @@ config TOUCHSCREEN_SYNAPTICS_RMI4_I2C
 	help
 	  This enables support for Synaptics RMI over I2C based touchscreens(ClearPad 3000).
 
+config CONFIG_DEBUG_TOUCHSCREEN
+	tristate "Debug lge_touch_core"
+	default n
+
 config SYNA_MULTI_TOUCH
 	tristate "Synaptics i2c touchscreen(ClearPad 3000) MutilTouch support"
 	depends on TOUCHSCREEN_SYNAPTICS_RMI4_I2C

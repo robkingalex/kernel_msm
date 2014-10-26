@@ -290,3 +290,4 @@ static inline void hstoba(unsigned char *dest, unsigned short src)
 }
 
 #endif
+

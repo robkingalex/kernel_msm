@@ -1390,11 +1390,11 @@ static int touch_power_cntl(struct lge_touch_data *ts, int onoff)
 		break;
 	}
 
-	#ifdef CONFIG_DEBUG_TOUCHSCREEN
 	if (unlikely(touch_debug_mask & DEBUG_POWER))
+		#ifdef CONFIG_DEBUG_TOUCHSCREEN
 		if (ret >= 0)
 			TOUCH_INFO_MSG("%s: power_state[%d]", __FUNCTION__, ts->curr_pwr_state);
-	#endif /* CONFIG_DEBUG_TOUCHSCREEN */
+		#endif /* CONFIG_DEBUG_TOUCHSCREEN */
 
 	return ret;
 }
@@ -1501,7 +1501,6 @@ static int touch_ic_init(struct lge_touch_data *ts)
 	       /* force continuous mode after IC init  */
 		if(touch_device_func->ic_ctrl){
 
-			#ifdef CONFIG_DEBUG_TOUCHSCREEN
 			TOUCH_INFO_MSG("force continuous mode !!!\n");
 			#endif /* CONFIG_DEBUG_TOUCHSCREEN */
 
@@ -2278,11 +2277,11 @@ static void touch_work_post_proc(struct lge_touch_data *ts, int post_proc)
 		if(likely(ts->pdata->role->operation_mode == INTERRUPT_MODE)){
 			next_work = atomic_read(&ts->next_work);
 
+			#ifdef CONFIG_DEBUG_TOUCHSCREEN
 			if(unlikely(ts->int_pin_state != 1 && next_work <= 0)){
-				#ifdef CONFIG_DEBUG_TOUCHSCREEN
 				TOUCH_INFO_MSG("WARN: Interrupt pin is low - next_work: %d, try_count: %d]\n",
 						next_work, ts->work_sync_err_cnt);
-				#endif /* CONFIG_DEBUG_TOUCHSCREEN */
+			#endif /* CONFIG_DEBUG_TOUCHSCREEN */
 
 				post_proc = WORK_POST_ERR_RETRY;
 				break;
@@ -2437,10 +2436,8 @@ static void touch_work_func_a(struct work_struct *work)
 				memset(&ts->ts_data.prev_button, 0x0, sizeof(ts->ts_data.prev_button));
 			}
 
-			#ifdef CONFIG_DEBUG_TOUCHSCREEN
 			if (likely(touch_debug_mask & (DEBUG_BASE_INFO | DEBUG_ABS)))
 				check_log_finger_changed(ts, ts->ts_data.total_num);
-			#endif /* CONFIG_DEBUG_TOUCHSCREEN */
 
 			ts->ts_data.prev_total_num = ts->ts_data.total_num;
 
@@ -2718,10 +2715,8 @@ abs_report:
 			ts->ts_data.prev_total_num = 0;
 		}
 		else {
-			#ifdef CONFIG_DEBUG_TOUCHSCREEN
 			if (likely(touch_debug_mask & DEBUG_ABS))
 				check_log_finger_changed(ts, i);
-			#endif /* CONFIG_DEBUG_TOUCHSCREEN */
 
 			ts->ts_data.prev_total_num = i;
 		}
@@ -2817,10 +2812,8 @@ static void touch_work_func_c(struct work_struct *work)
 
 		ts->ts_data.prev_total_num = 0;
 	} else if (ts->ts_data.total_num <= ts->pdata->caps->max_id) {
-		#ifdef CONFIG_DEBUG_TOUCHSCREEN
 		if (likely(touch_debug_mask & (DEBUG_BASE_INFO | DEBUG_ABS)))
 			check_log_finger_changed(ts, ts->ts_data.total_num);
-		#endif /* CONFIG_DEBUG_TOUCHSCREEN */
 
 		ts->ts_data.prev_total_num = ts->ts_data.total_num;
 

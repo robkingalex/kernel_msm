@@ -4203,45 +4203,46 @@ static void touch_power_suspend(struct power_suspend *h)
 		return;
 	}
 
-#ifdef CUST_G_TOUCH
-	if (ts->pdata->role->ghost_detection_enable) {
-		resume_flag = 0;
-#ifdef LCD_ON_GHOST
-		lcd_on_flag = 0;
-#endif
-	}
-#endif
-
-	if (ts->pdata->role->operation_mode)
-		disable_irq(ts->client->irq);
-	else
-		hrtimer_cancel(&ts->timer);
-#ifdef CUST_G_TOUCH
-	if (ts->pdata->role->ghost_detection_enable) {
-		hrtimer_cancel(&hr_touch_trigger_timer);
-	}
-
 #ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
-
 	if (prevent_sleep) {
 		enable_irq_wake(ts->client->irq);
 		release_all_ts_event(ts);
 	} else
+#endif
+	{
 
+#ifdef CUST_G_TOUCH
+		if (ts->pdata->role->ghost_detection_enable) {
+			resume_flag = 0;
+#ifdef LCD_ON_GHOST
+			lcd_on_flag = 0;
+#endif
+		}
+#endif
+
+		if (ts->pdata->role->operation_mode)
+			disable_irq(ts->client->irq);
+		else
+			hrtimer_cancel(&ts->timer);
+#ifdef CUST_G_TOUCH
+		if (ts->pdata->role->ghost_detection_enable) {
+			hrtimer_cancel(&hr_touch_trigger_timer);
+		}
 #endif
 
 #ifdef MULTI_GHOST_DETECT
 		cancel_delayed_work_sync(&ts->work_multi_ghost);
 #endif
 
-	cancel_work_sync(&ts->work);
-	cancel_delayed_work_sync(&ts->work_init);
-	if (ts->pdata->role->key_type == TOUCH_HARD_KEY)
-		cancel_delayed_work_sync(&ts->work_touch_lock);
+		cancel_work_sync(&ts->work);
+		cancel_delayed_work_sync(&ts->work_init);
+		if (ts->pdata->role->key_type == TOUCH_HARD_KEY)
+			cancel_delayed_work_sync(&ts->work_touch_lock);
 
-	release_all_ts_event(ts);
+		release_all_ts_event(ts);
 
-	touch_power_cntl(ts, ts->pdata->role->suspend_pwr);
+		touch_power_cntl(ts, ts->pdata->role->suspend_pwr);
+	}
 }
 
 static void touch_late_resume(struct power_suspend *h)

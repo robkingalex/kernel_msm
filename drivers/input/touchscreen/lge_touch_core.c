@@ -157,7 +157,6 @@ static void release_all_ts_event(struct lge_touch_data *ts);
 int trigger_baseline = 0;
 int ts_charger_plug = 0;
 int ts_charger_type = 0;
-#ifdef G_ONLY
 static void safety_reset(struct lge_touch_data *ts);
 static int touch_ic_init(struct lge_touch_data *ts);
 #ifdef G_ONLY
@@ -301,7 +300,7 @@ int ghost_detect_solution(struct lge_touch_data *ts)
 	if(hopping == 1) {
 		TOUCH_INFO_MSG("hopping\n");
 		ghost_detection = true;
-	}*/
+	}
 #endif
 	if (ts_charger_plug) {
 		if( (ts->pdata->role->ta_debouncing_finger_num  <= ts->ts_data.total_num) && ( ta_debouncing_count < ts->pdata->role->ta_debouncing_count)) {

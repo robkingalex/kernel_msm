@@ -21,7 +21,7 @@
 //#define ARRAYED_TOUCH_FW_BIN
 
 #define NUM_OF_EACH_FINGER_DATA_REG		5
-#define MAX_NUM_OF_FINGERS				10
+#define MAX_NUM_OF_FINGERS		    		10
 
 #define DESCRIPTION_TABLE_START			0xe9
 

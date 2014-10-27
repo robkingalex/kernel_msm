@@ -96,7 +96,7 @@ unsigned char F54_RxOpenReport(void)
 		delayMS(1); //wait 1ms
         readRMI(F54_Command_Base, &command, 1);
    } while (command != 0x00);
-	  
+
    command = 0x02;
    writeRMI(F54_Command_Base, &command, 1);
 
@@ -107,7 +107,7 @@ unsigned char F54_RxOpenReport(void)
 
    //  command = 0x00;
    //	writeRMI(0x0113, &command, 1);
-	  
+
    command = 0x00;
    writeRMI(F54_Data_LowIndex, &command, 1);
    writeRMI(F54_Data_HighIndex, &command, 1);
@@ -236,7 +236,7 @@ unsigned char F54_RxOpenReport(void)
 		delayMS(1); //wait 1ms
         readRMI(F54_Command_Base, &command, 1);
    } while (command != 0x00);
-	  
+
    //enable all the interrupts
 //   SetPage(0x00);
    //Reset
@@ -268,4 +268,3 @@ unsigned char F54_RxOpenReport(void)
 	}
 }
 #endif
-

@@ -157,9 +157,9 @@ static void release_all_ts_event(struct lge_touch_data *ts);
 int trigger_baseline = 0;
 int ts_charger_plug = 0;
 int ts_charger_type = 0;
-#ifdef G_ONLY
 static void safety_reset(struct lge_touch_data *ts);
 static int touch_ic_init(struct lge_touch_data *ts);
+#ifdef G_ONLY
 int cur_hopping_idx = 3;
 extern int cns_en;
 #endif
@@ -267,7 +267,7 @@ int ghost_detect_solution(struct lge_touch_data *ts)
 
 	if(trigger_baseline==2) 
 		goto out_need_to_rebase;
-	
+
 	if(resume_flag) {
 		resume_flag = 0;
 		do_gettimeofday(&t_ex_debug[TIME_EX_FIRST_INT_TIME]);
@@ -297,10 +297,10 @@ int ghost_detect_solution(struct lge_touch_data *ts)
 		ghost_detection = true;
 	}
 #ifdef G_ONLY
-	/*if(hopping == 1) {
+	if(hopping == 1) {
 		TOUCH_INFO_MSG("hopping\n");
 		ghost_detection = true;
-	}*/
+	}
 #endif
 	if (ts_charger_plug) {
 		if( (ts->pdata->role->ta_debouncing_finger_num  <= ts->ts_data.total_num) && ( ta_debouncing_count < ts->pdata->role->ta_debouncing_count)) {
@@ -958,6 +958,13 @@ static int touch_power_cntl(struct lge_touch_data *ts, int onoff)
  */
 static void safety_reset(struct lge_touch_data *ts)
 {
+#ifdef CUST_G_TOUCH
+        if(ts->fw_info.fw_upgrade.is_downloading) {
+	    if (likely(touch_debug_mask & DEBUG_BASE_INFO))
+		TOUCH_INFO_MSG("%s: under f/w updating.. [%d]", __FUNCTION__, ts->fw_info.fw_upgrade.is_downloading);
+		return;
+        }
+#endif
 	if (ts->pdata->role->operation_mode)
 		disable_irq(ts->client->irq);
 	else
@@ -1938,8 +1945,8 @@ static u16 find_button(struct lge_touch_data *ts)
 {
 	int i;
 
-		const struct t_data data = ts->ts_data.curr_data[0];
-		const struct section_info sc = ts->st_info;
+        const struct t_data data = ts->ts_data.curr_data[0];
+        const struct section_info sc = ts->st_info;
 
 	if (is_in_section(sc.panel, data.x_position, data.y_position))
 		return KEY_PANEL;
@@ -2349,7 +2356,7 @@ out:
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->pdata->caps->y_max, 0, 0);
 #endif
 	memset(&ts->fw_info.fw_upgrade, 0, sizeof(ts->fw_info.fw_upgrade));
-
+	ts->fw_info.fw_upgrade.fw_force_rework = false;
 	return;
 }
 
@@ -3625,11 +3632,11 @@ static int touch_probe(struct i2c_client *client, const struct i2c_device_id *id
 	/* accuracy solution */
 	if (ts->pdata->role->accuracy_filter_enable){
 		ts->accuracy_filter.ignore_pressure_gap = 5;
-		ts->accuracy_filter.delta_max = 30;
+		ts->accuracy_filter.delta_max = 100;
 		ts->accuracy_filter.max_pressure = 255;
-		ts->accuracy_filter.time_to_max_pressure = one_sec / 20;
-		ts->accuracy_filter.direction_count = one_sec / 6;
-		ts->accuracy_filter.touch_max_count = one_sec / 2;
+		ts->accuracy_filter.time_to_max_pressure = one_sec / 25;
+		ts->accuracy_filter.direction_count = one_sec / 8;
+		ts->accuracy_filter.touch_max_count = one_sec / 3;
 	}
 	/*ts->power_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;*/
 	ts->power_suspend.suspend = touch_power_suspend;
@@ -3755,35 +3762,43 @@ static void touch_power_suspend(struct power_suspend *h)
 		TOUCH_DEBUG_MSG("\n");
 
 	if (ts->fw_info.fw_upgrade.is_downloading == UNDER_DOWNLOADING){
-		TOUCH_INFO_MSG("power_suspend is not executed\n");
+		TOUCH_INFO_MSG("early_suspend is not executed\n");
 		return;
 	}
 
 #ifdef CUST_G_TOUCH
 	if (ts->pdata->role->ghost_detection_enable) {
+		resume_flag = 0;
+	}
+#endif
+
+#ifdef CUST_G_TOUCH
+	if (ts->pdata->role->ghost_detection_enable) {
 		hrtimer_cancel(&hr_touch_trigger_timer);
 	}
+#endif
 
 #ifdef CONFIG_TOUCHSCREEN_PREVENT_SLEEP
-
 	if (prevent_sleep) {
 		enable_irq_wake(ts->client->irq);
 		release_all_ts_event(ts);
 	} else
-
 #endif
-
-	#endif
- 	{
- 		if (ts->pdata->role->operation_mode == INTERRUPT_MODE)
- 			disable_irq(ts->client->irq);
- 		else
+	{
+		if (ts->pdata->role->operation_mode)
+			disable_irq(ts->client->irq);
+		else
 			hrtimer_cancel(&ts->timer);
 
-	release_all_ts_event(ts);
+		cancel_work_sync(&ts->work);
+		cancel_delayed_work_sync(&ts->work_init);
+		if (ts->pdata->role->key_type == TOUCH_HARD_KEY)
+			cancel_delayed_work_sync(&ts->work_touch_lock);
 
-	touch_power_cntl(ts, ts->pdata->role->suspend_pwr);
-    }
+		release_all_ts_event(ts);
+
+		touch_power_cntl(ts, ts->pdata->role->suspend_pwr);
+	}
 }
 
 static void touch_late_resume(struct power_suspend *h)
@@ -3826,19 +3841,19 @@ static void touch_late_resume(struct power_suspend *h)
 	{
 		touch_power_cntl(ts, ts->pdata->role->resume_pwr);
 
-	if (ts->pdata->role->operation_mode == INTERRUPT_MODE)
- 			enable_irq(ts->client->irq);
- 		else
- 			hrtimer_start(&ts->timer,
- 				ktime_set(0, ts->pdata->role->report_period),
- 						HRTIMER_MODE_REL);
- 
- 		if (ts->pdata->role->resume_pwr == POWER_ON)
- 			queue_delayed_work(touch_wq, &ts->work_init,
- 				msecs_to_jiffies(ts->pdata->role->booting_delay));
- 		else
- 			queue_delayed_work(touch_wq, &ts->work_init, 0);
- 	}
+		if (ts->pdata->role->operation_mode)
+			enable_irq(ts->client->irq);
+		else
+			hrtimer_start(&ts->timer,
+				ktime_set(0, ts->pdata->role->report_period),
+						HRTIMER_MODE_REL);
+
+		if (ts->pdata->role->resume_pwr == POWER_ON)
+			queue_delayed_work(touch_wq, &ts->work_init,
+				msecs_to_jiffies(ts->pdata->role->booting_delay));
+		else
+			queue_delayed_work(touch_wq, &ts->work_init, 0);
+	}
 }
 
 

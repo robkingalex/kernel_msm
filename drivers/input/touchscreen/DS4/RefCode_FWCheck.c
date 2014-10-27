@@ -30,7 +30,7 @@ void FirmwareCheck( void )
         int i;
 	unsigned int packrat, bootpackrat;
 	unsigned short packageID, packageIDRev;
-	
+
 	printk("\nCheck firmware information\n");
 
         //Check Config ID
@@ -63,7 +63,7 @@ void FirmwareCheck( void )
 	packageIDRev = (buffer[3] << 8) | buffer[2];
 	printk("Package ID = %d\n", packageID);
 	printk("Package ID Rev = %d\n\n", packageIDRev);
-	
+
         //Enter bootloader mode
         readRMI(F34_Query_Base, &buffer[0], 2);
         writeRMI(F34_Data_Base+2, &buffer[0], 2);
@@ -71,7 +71,7 @@ void FirmwareCheck( void )
         writeRMI(0x12, &buffer[0], 1);
 
 	SYNA_PDTScan_BootloaderMode();
-		
+
 	//Check bootloader Product family ID
 	readRMI(F01_Query_Base+2, buffer, 1);
 	printk("Bootloader Product Family = %d\n", buffer[0]);
@@ -113,7 +113,7 @@ void FirmwareCheck_temp( void )
 	unsigned short partNumber1;
 	unsigned char partNumber2, FWVersion1, FWVersion2;
 #endif
-		
+
         //Check Config ID
         readRMI(F34_Ctrl_Base, &buffer[0], 4);
         printk("\nConfigID = %c%c%c%c\n", buffer[0], buffer[1], buffer[2], buffer[3]);
@@ -128,7 +128,7 @@ void FirmwareCheck_temp( void )
 void AttentionTest( void )
 {
 	unsigned char command;
-	
+
 	printk("\nBin #: 23		Name: Attention Test\n");
 
 	//Reset
@@ -141,4 +141,3 @@ void AttentionTest( void )
 	else
 		printk("Attention Test Fail\n");
 }
-

@@ -37,8 +37,6 @@
 #include "SynaImage.h"
 #define G_ONLY
 #endif
-
-
 #include <linux/regulator/machine.h>
 
 /* RMI4 spec from 511-000405-01 Rev.D
@@ -174,15 +172,15 @@
 /* Get user-finger-data from register.
  */
 #define TS_SNTS_GET_X_POSITION(_high_reg, _low_reg) \
-		( ((u16)((_high_reg << 4) & 0x0FF0) | (u16)(_low_reg&0x0F)))
+	(((u16)((_high_reg << 4) & 0x0FF0) | (u16)(_low_reg&0x0F)))
 #define TS_SNTS_GET_Y_POSITION(_high_reg, _low_reg) \
-		( ((u16)((_high_reg << 4) & 0x0FF0) | (u16)((_low_reg >> 4) & 0x0F)))
+	(((u16)((_high_reg << 4) & 0x0FF0) | (u16)((_low_reg >> 4) & 0x0F)))
 #define TS_SNTS_GET_WIDTH_MAJOR(_width) \
-		((((_width & 0xF0) >> 4) - (_width & 0x0F)) > 0) ? (_width & 0xF0) >> 4 : _width & 0x0F
+	((((_width & 0xF0) >> 4) - (_width & 0x0F)) > 0) ? (_width & 0xF0) >> 4 : _width & 0x0F
 #define TS_SNTS_GET_WIDTH_MINOR(_width) \
-		((((_width & 0xF0) >> 4) - (_width & 0x0F)) > 0) ? _width & 0x0F : (_width & 0xF0) >> 4
+	((((_width & 0xF0) >> 4) - (_width & 0x0F)) > 0) ? _width & 0x0F : (_width & 0xF0) >> 4
 #define TS_SNTS_GET_ORIENTATION(_width) \
-		((((_width & 0xF0) >> 4) - (_width & 0x0F)) > 0) ? 0 : 1
+	((((_width & 0xF0) >> 4) - (_width & 0x0F)) > 0) ? 0 : 1
 #define TS_SNTS_GET_PRESSURE(_pressure) \
 		_pressure
 
@@ -198,7 +196,7 @@
 		(_finger_status_reg[2] & 0x04)<<7 | (_finger_status_reg[2] & 0x01)<<8 |	\
 		(_finger_status_reg[1] & 0x40)<<1 | (_finger_status_reg[1] & 0x10)<<2 | \
 		(_finger_status_reg[1] & 0x04)<<3 | (_finger_status_reg[1] & 0x01)<<4 |	\
-		(_finger_status_reg[0] & 0x40)>>3 | (_finger_status_reg[0] & 0x10)>>2 | \
+	(_finger_status_reg[0] & 0x40)>>3 | (_finger_status_reg[0] & 0x10)>>2 | \
 		(_finger_status_reg[0] & 0x04)>>1 | (_finger_status_reg[0] & 0x01)
 
 #define GET_INDEX_FROM_MASK(_index, _bit_mask, _max_finger)	\
@@ -254,7 +252,6 @@ int synaptics_ts_page_data_write(struct i2c_client *client, u8 page, u8 reg, int
 		TOUCH_ERR_MSG("PAGE_SELECT_REG write fail\n");
 		return -EIO;
 	}
-
 	return 0;
 }
 
@@ -345,7 +342,7 @@ int synaptics_ts_get_data(struct i2c_client *client, struct touch_data* data)
 #endif
 
 	/* Because of ESD damage... */
-	if (unlikely(ts->ts_data.interrupt_status_reg & ts->interrupt_mask.flash)){
+	if (unlikely(ts->ts_data.interrupt_status_reg & ts->interrupt_mask.flash)) {
 		TOUCH_ERR_MSG("Impossible Interrupt\n");
 		goto err_synaptics_device_damage;
 	}
@@ -382,7 +379,6 @@ int synaptics_ts_get_data(struct i2c_client *client, struct touch_data* data)
 				TOUCH_ERR_MSG("FINGER_DATA_REG read fail\n");
 				goto err_synaptics_getdata;
 			}
-
 			data->curr_data[finger_index].id = finger_index;
 			data->curr_data[finger_index].x_position =
 				TS_SNTS_GET_X_POSITION(ts->ts_data.finger.finger_reg[finger_index][REG_X_POSITION],
@@ -491,7 +487,6 @@ int synaptics_ts_get_data(struct i2c_client *client, struct touch_data* data)
 				hopping = 0;
 			}
 		}
-
 		if (unlikely(synaptics_ts_page_data_read(client, ANALOG_PAGE, 0x05, 1, &buf) < 0)) {
 			TOUCH_ERR_MSG("Interference Metric REG read fail\n");
 			goto err_synaptics_getdata;
@@ -608,7 +603,6 @@ static int read_page_description_table(struct i2c_client* client)
 	ts->interrupt_mask.abs = 0x4;
 	ts->interrupt_mask.button = 0x20;
 #endif
-
 	if(ts->common_fc.dsc.id == 0 || ts->finger_fc.dsc.id == 0
 			|| ts->analog_fc.dsc.id == 0 || ts->flash_fc.dsc.id == 0){
 		TOUCH_ERR_MSG("common/finger/analog/flash are not initiailized\n");
@@ -631,7 +625,6 @@ int get_ic_info(struct synaptics_ts_data* ts, struct touch_fw_info* fw_info)
 #if defined(ARRAYED_TOUCH_FW_BIN)
 	int cnt;
 #endif
-
 	u8 device_status = 0;
 	u8 flash_control = 0;
 
@@ -646,14 +639,14 @@ int get_ic_info(struct synaptics_ts_data* ts, struct touch_fw_info* fw_info)
 	}
 
 	if (unlikely(touch_i2c_read(ts->client, MANUFACTURER_ID_REG,
-			sizeof(ts->fw_info.manufacturer_id), &ts->fw_info.manufacturer_id) < 0)) {
+					sizeof(ts->fw_info.manufacturer_id), &ts->fw_info.manufacturer_id) < 0)) {
 		TOUCH_ERR_MSG("MANUFACTURER_ID_REG read fail\n");
 		return -EIO;
 	}
 
 	/* Product ID - G:TM2000, GJ:TM2372, GK:PLG124(LGIT G1F), PLG192(SUNTEL GFF) , PLG193(LGIT GFF), GV:PLG121 */
 	if (unlikely(touch_i2c_read(ts->client, PRODUCT_ID_REG,
-			sizeof(ts->fw_info.product_id) - 1, ts->fw_info.product_id) < 0)) {
+					sizeof(ts->fw_info.product_id) - 1, ts->fw_info.product_id) < 0)) {
 		TOUCH_ERR_MSG("PRODUCT_ID_REG read fail\n");
 		return -EIO;
 	}
@@ -676,7 +669,7 @@ int get_ic_info(struct synaptics_ts_data* ts, struct touch_fw_info* fw_info)
 			TOUCH_INFO_MSG("IC is 7020, panel is GFF.");
 		} else {
 			if( fw_info->ic_fw_version[0] == 'E' && (int)simple_strtol(&fw_info->ic_fw_version[1], NULL, 10) < 14) {
-				ts->ic_panel_type = G_IC7020_G2;
+			ts->ic_panel_type = G_IC7020_G2;
 				TOUCH_INFO_MSG("IC is 7020, panel is G2.");
 			} else if( (fw_info->ic_fw_version[0] == 'E' && 
 				  	   (int)simple_strtol(&fw_info->ic_fw_version[1], NULL, 10) >= 14 && 
@@ -804,7 +797,7 @@ int get_ic_info(struct synaptics_ts_data* ts, struct touch_fw_info* fw_info)
 	}
 
 	/* Firmware has a problem, so we should firmware-upgrade */
-	if(device_status & DEVICE_STATUS_FLASH_PROG
+	if (device_status & DEVICE_STATUS_FLASH_PROG
 			|| (device_status & DEVICE_CRC_ERROR_MASK) != 0
 			|| (flash_control & FLASH_STATUS_MASK) != 0) {
 		TOUCH_ERR_MSG("Firmware has a unknown-problem, so it needs firmware-upgrade.\n");
@@ -883,25 +876,28 @@ int synaptics_ts_init(struct i2c_client* client, struct touch_fw_info* fw_info)
 	}
 	TOUCH_INFO_MSG("DEVICE CONTROL_REG = %x\n", buf);
 #else
+
 	if (unlikely(touch_i2c_write_byte(client, DEVICE_CONTROL_REG,
-			DEVICE_CONTROL_NOSLEEP | DEVICE_CONTROL_CONFIGURED) < 0)) {
+		DEVICE_CONTROL_NOSLEEP | DEVICE_CONTROL_CONFIGURED) < 0)) {
 		TOUCH_ERR_MSG("DEVICE_CONTROL_REG write fail\n");
 		return -EIO;
 	}
 #endif
 
 	if (unlikely(touch_i2c_read(client, INTERRUPT_ENABLE_REG,
-			1, &buf) < 0)) {
+		1, &buf) < 0)) {
 		TOUCH_ERR_MSG("INTERRUPT_ENABLE_REG read fail\n");
 		return -EIO;
 	}
+
 	if (unlikely(touch_i2c_write_byte(client, INTERRUPT_ENABLE_REG,
-			buf | ts->interrupt_mask.abs | ts->interrupt_mask.button) < 0)) {
+		buf | ts->interrupt_mask.abs | ts->interrupt_mask.button) < 0)) {
 		TOUCH_ERR_MSG("INTERRUPT_ENABLE_REG write fail\n");
 		return -EIO;
 	}
 
-	if(ts->pdata->role->report_mode == CONTINUOUS_REPORT_MODE) {
+
+	if (ts->pdata->role->report_mode == CONTINUOUS_REPORT_MODE) {
 #ifdef CUST_G_TOUCH
 		if (unlikely(touch_i2c_write_byte(client, TWO_D_REPORTING_MODE,
 				REPORT_BEYOND_CLIP | ABS_FILTER | REPORT_MODE_CONTINUOUS) < 0)) {
@@ -929,7 +925,6 @@ int synaptics_ts_init(struct i2c_client* client, struct touch_fw_info* fw_info)
 			return -EIO;
 		}
 #endif
-
 		if (unlikely(touch_i2c_write_byte(client, DELTA_X_THRESH_REG,
 				ts->pdata->role->delta_pos_threshold) < 0)) {
 			TOUCH_ERR_MSG("DELTA_X_THRESH_REG write fail\n");
@@ -956,13 +951,14 @@ int synaptics_ts_init(struct i2c_client* client, struct touch_fw_info* fw_info)
 
 	if (unlikely(touch_i2c_read(client, INTERRUPT_STATUS_REG, 1, &buf) < 0)) {
 		TOUCH_ERR_MSG("INTERRUPT_STATUS_REG read fail\n");
-		return -EIO;	// it is critical problem because interrupt will not occur.
+		return -EIO;	/* it is critical problem because interrupt will not occur. */
 	}
 
-	if (unlikely(touch_i2c_read(client, FINGER_STATE_REG, sizeof(ts->ts_data.finger.finger_status_reg),
-			ts->ts_data.finger.finger_status_reg) < 0)) {
+	if (unlikely(touch_i2c_read(client, FINGER_STATE_REG,
+				sizeof(ts->ts_data.finger.finger_status_reg),
+				ts->ts_data.finger.finger_status_reg) < 0)) {
 		TOUCH_ERR_MSG("FINGER_STATE_REG read fail\n");
-		return -EIO;	// it is critical problem because interrupt will not occur on some FW.
+		return -EIO;	/* it is critical problem because interrupt will not occur on some FW. */
 	}
 
 #ifdef CONFIG_MACH_APQ8064_GK_KR
@@ -1113,23 +1109,31 @@ int synaptics_ts_probe(struct i2c_client* client)
 			goto err_get_vdd_failed;
 		}
 
-		ts->regulator_vio = regulator_get_exclusive(NULL, ts->pdata->pwr->vio);
+		ts->regulator_vio = regulator_get_exclusive(NULL,
+							ts->pdata->pwr->vio);
 		if (IS_ERR(ts->regulator_vio)) {
-			TOUCH_ERR_MSG("FAIL: regulator_get_vio - %s\n", ts->pdata->pwr->vio);
+			TOUCH_ERR_MSG("FAIL: regulator_get_vio - %s\n",
+							ts->pdata->pwr->vio);
 			ret = -EPERM;
 			goto err_get_vio_failed;
 		}
 
 		if (ts->pdata->pwr->vdd_voltage > 0) {
-			ret = regulator_set_voltage(ts->regulator_vdd, ts->pdata->pwr->vdd_voltage, ts->pdata->pwr->vdd_voltage);
+			ret = regulator_set_voltage(ts->regulator_vdd,
+						ts->pdata->pwr->vdd_voltage,
+						ts->pdata->pwr->vdd_voltage);
 			if (ret < 0)
-				TOUCH_ERR_MSG("FAIL: VDD voltage setting - (%duV)\n", ts->pdata->pwr->vdd_voltage);
+				TOUCH_ERR_MSG("FAIL: VDD voltage setting - (%duV)\n",
+						ts->pdata->pwr->vdd_voltage);
 		}
 
 		if (ts->pdata->pwr->vio_voltage > 0) {
-			ret = regulator_set_voltage(ts->regulator_vio, ts->pdata->pwr->vio_voltage, ts->pdata->pwr->vio_voltage);
+			ret = regulator_set_voltage(ts->regulator_vio,
+						ts->pdata->pwr->vio_voltage,
+						ts->pdata->pwr->vio_voltage);
 			if (ret < 0)
-				TOUCH_ERR_MSG("FAIL: VIO voltage setting - (%duV)\n",ts->pdata->pwr->vio_voltage);
+				TOUCH_ERR_MSG("FAIL: VIO voltage setting - (%duV)\n",
+						ts->pdata->pwr->vio_voltage);
 		}
 	}
 
@@ -1172,6 +1176,7 @@ int synaptics_ts_resolution(struct i2c_client* client) {
 
 }
 #endif
+
 void synaptics_ts_remove(struct i2c_client* client)
 {
 	struct synaptics_ts_data* ts =
@@ -1195,6 +1200,7 @@ int synaptics_ts_fw_upgrade(struct i2c_client* client, struct touch_fw_info* fw_
 	int ret = 0;
 
 	ts->is_probed = 0;
+
 	ret = FirmwareUpgrade(ts, fw_info->fw_upgrade.fw_path);
 
 	/* update IC info */
@@ -1214,11 +1220,9 @@ int synaptics_ts_ic_ctrl(struct i2c_client *client, u8 code, u16 value)
 			(struct synaptics_ts_data*)get_touch_handle(client);
 	u8 buf = 0;
 
-	switch (code)
-	{
+	switch (code) {
 	case IC_CTRL_BASELINE:
-		switch (value)
-		{
+		switch (value) {
 		case BASELINE_OPEN:
 #ifdef CUST_G_TOUCH
 			break;
@@ -1288,7 +1292,8 @@ int synaptics_ts_ic_ctrl(struct i2c_client *client, u8 code, u16 value)
 			return -EIO;
 		}
 
-		if (unlikely(touch_i2c_write_byte(client, PAGE_SELECT_REG, 0x00) < 0)) {
+		if (unlikely(touch_i2c_write_byte(client,
+						PAGE_SELECT_REG, 0x00) < 0)) {
 			TOUCH_ERR_MSG("PAGE_SELECT_REG write fail\n");
 			return -EIO;
 		}
@@ -1306,29 +1311,32 @@ int synaptics_ts_ic_ctrl(struct i2c_client *client, u8 code, u16 value)
 			return -EIO;
 		}
 
-		if (touch_i2c_write_byte(client, ((value & 0xFF00) >> 8), (value & 0xFF)) < 0) {
+		if (touch_i2c_write_byte(client,
+				((value & 0xFF00) >> 8), (value & 0xFF)) < 0) {
 			TOUCH_ERR_MSG("IC register write fail\n");
 			return -EIO;
 		}
 
-		if (unlikely(touch_i2c_write_byte(client, PAGE_SELECT_REG, 0x00) < 0)) {
+		if (unlikely(touch_i2c_write_byte(client,
+						PAGE_SELECT_REG, 0x00) < 0)) {
 			TOUCH_ERR_MSG("PAGE_SELECT_REG write fail\n");
 			return -EIO;
 		}
 #else
-		if (touch_i2c_write_byte(client, ((value & 0xFF00) >> 8), (value & 0xFF)) < 0) {
+		if (touch_i2c_write_byte(client,
+				((value & 0xFF00) >> 8), (value & 0xFF)) < 0) {
 			TOUCH_ERR_MSG("IC register write fail\n");
 			return -EIO;
 		}
 #endif
 		break;
 	case IC_CTRL_RESET_CMD:
-		if (unlikely(touch_i2c_write_byte(client, DEVICE_COMMAND_REG, 0x1) < 0)) {
+		if (unlikely(touch_i2c_write_byte(client,
+						DEVICE_COMMAND_REG, 0x1) < 0)) {
 			TOUCH_ERR_MSG("IC Reset command write fail\n");
 			return -EIO;
 		}
 		break;
-
 	case IC_CTRL_REPORT_MODE:
 
 		switch (value)
@@ -1365,8 +1373,8 @@ int synaptics_ts_ic_ctrl(struct i2c_client *client, u8 code, u16 value)
 			default:
 				break;
 		}
-		break;
 
+		break;
 	default:
 		break;
 	}

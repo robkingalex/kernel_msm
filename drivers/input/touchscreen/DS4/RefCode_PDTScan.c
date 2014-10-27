@@ -368,7 +368,7 @@ void SYNA_ConstructRMI_F1A(void)
 			}
 			MaxButton++;
 		}
-	
+
 		if((temp = ButtonMapping[k*2]) == 0xFF)	break;     // Button TX
 		else
 		{
@@ -381,4 +381,3 @@ void SYNA_ConstructRMI_F1A(void)
 ////////////////////////////////////////////////////////////////////////////////		
 	}
 }
-

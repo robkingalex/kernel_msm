@@ -51,14 +51,14 @@ unsigned char F54_FullRawCap(int mode)
 
 	int i, j, k;
 	unsigned short length;
-	
+
 	unsigned char command;
 
 	length = numberOfTx * numberOfRx* 2;
 
 	//check product id to set basecap array
 	readRMI(F01_Query_Base+11, &product_id[0], sizeof(product_id));
-	
+
 	if(!strncmp(product_id, "TM2369", 6)) {
 		printk("set limit array to TPK value.\n");
 		memcpy(Limit, Limit_TPK, sizeof(Limit_TPK));
@@ -74,7 +74,7 @@ unsigned char F54_FullRawCap(int mode)
 	} else {
 		printk("set limit array to LGIT value.\n");
 	}
-	
+
 	//set limit array
 	if(call_cnt == 0){
 		printk("Backup Limit to LimitBack array\n");
@@ -351,7 +351,7 @@ unsigned char F54_FullRawCap(int mode)
 #else
 				 printk("\n");
 #endif
-				 
+
 				 for (i = 0; i < numberOfTx; i++)
 				 {
 #ifdef F54_Porting
@@ -370,7 +370,7 @@ unsigned char F54_FullRawCap(int mode)
 						//if(mode == 3)	   printk("%1.3f\t", (float)(ImageArray[i][j]) / 1000);
 						//else if(mode == 4) printk("%d\t", ImageArray[i][j]);
 #endif
-						 
+
 					  }
 #ifdef F54_Porting
 				  ret += sprintf(ret+buf, "\n");
@@ -392,7 +392,7 @@ unsigned char F54_FullRawCap(int mode)
 		delayMS(200);
 		readRMI(F01_Data_Base+1, &command, 1); //Read Interrupt status register to Interrupt line goes to high
 	}
-	
+
 	if(mode >= 0 && mode < 2)
 	{
 		if(Result == numberOfTx * numberOfRx)
@@ -430,4 +430,3 @@ unsigned char F54_FullRawCap(int mode)
 	}
  }
 #endif
-

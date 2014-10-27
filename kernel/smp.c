@@ -16,7 +16,6 @@
 
 #include "smpboot.h"
 
-#ifdef CONFIG_USE_GENERIC_SMP_HELPERS
 enum {
 	CSD_FLAG_LOCK		= 0x01,
 };
@@ -24,6 +23,7 @@ enum {
 struct call_function_data {
 	struct call_single_data	__percpu *csd;
 	cpumask_var_t		cpumask;
+	cpumask_var_t		cpumask_ipi;
 };
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct call_function_data, cfd_data);
@@ -47,6 +47,9 @@ hotplug_cfd(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		if (!zalloc_cpumask_var_node(&cfd->cpumask, GFP_KERNEL,
 				cpu_to_node(cpu)))
 			return notifier_from_errno(-ENOMEM);
+		if (!zalloc_cpumask_var_node(&cfd->cpumask_ipi, GFP_KERNEL,
+				cpu_to_node(cpu)))
+			return notifier_from_errno(-ENOMEM);
 		cfd->csd = alloc_percpu(struct call_single_data);
 		if (!cfd->csd) {
 			free_cpumask_var(cfd->cpumask);
@@ -61,6 +64,7 @@ hotplug_cfd(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 		free_cpumask_var(cfd->cpumask);
+		free_cpumask_var(cfd->cpumask_ipi);
 		free_percpu(cfd->csd);
 		break;
 #endif
@@ -159,7 +163,7 @@ void generic_exec_single(int cpu, struct call_single_data *csd, int wait)
 		arch_send_call_function_single_ipi(cpu);
 
 	if (wait)
-		csd_lock_wait(csd);
+		csd_lock_wait(data);
 }
 
 /*
@@ -352,7 +356,7 @@ void __smp_call_function_single(int cpu, struct call_single_data *csd,
 void smp_call_function_many(const struct cpumask *mask,
 			    smp_call_func_t func, void *info, bool wait)
 {
-	struct call_function_data *cfd;
+	struct call_function_data *data;
 	int cpu, next_cpu, this_cpu = smp_processor_id();
 
 	/*
@@ -384,17 +388,24 @@ void smp_call_function_many(const struct cpumask *mask,
 		return;
 	}
 
-	cfd = &__get_cpu_var(cfd_data);
+	data = &__get_cpu_var(cfd_data);
 
-	cpumask_and(cfd->cpumask, mask, cpu_online_mask);
-	cpumask_clear_cpu(this_cpu, cfd->cpumask);
+	cpumask_and(data->cpumask, mask, cpu_online_mask);
+	cpumask_clear_cpu(this_cpu, data->cpumask);
 
 	/* Some callers race with other cpus changing the passed mask */
-	if (unlikely(!cpumask_weight(cfd->cpumask)))
+	if (unlikely(!cpumask_weight(data->cpumask)))
 		return;
 
-	for_each_cpu(cpu, cfd->cpumask) {
-		struct call_single_data *csd = per_cpu_ptr(cfd->csd, cpu);
+	/*
+	 * After we put an entry into the list, data->cpumask
+	 * may be cleared again when another CPU sends another IPI for
+	 * a SMP function call, so data->cpumask will be zero.
+	 */
+	cpumask_copy(data->cpumask_ipi, data->cpumask);
+
+	for_each_cpu(cpu, data->cpumask) {
+		struct call_single_data *csd = per_cpu_ptr(data->csd, cpu);
 		struct call_single_queue *dst =
 					&per_cpu(call_single_queue, cpu);
 		unsigned long flags;
@@ -409,13 +420,12 @@ void smp_call_function_many(const struct cpumask *mask,
 	}
 
 	/* Send a message to all CPUs in the map */
-	arch_send_call_function_ipi_mask(cfd->cpumask);
+	arch_send_call_function_ipi_mask(data->cpumask_ipi);
 
 	if (wait) {
-		for_each_cpu(cpu, cfd->cpumask) {
-			struct call_single_data *csd;
-
-			csd = per_cpu_ptr(cfd->csd, cpu);
+		for_each_cpu(cpu, data->cpumask) {
+			struct call_single_data *csd =
+					per_cpu_ptr(data->csd, cpu);
 			csd_lock_wait(csd);
 		}
 	}
@@ -446,7 +456,28 @@ int smp_call_function(smp_call_func_t func, void *info, int wait)
 	return 0;
 }
 EXPORT_SYMBOL(smp_call_function);
-#endif /* USE_GENERIC_SMP_HELPERS */
+
+#ifndef CONFIG_USE_GENERIC_SMP_HELPERS
+void ipi_call_lock(void)
+{
+	raw_spin_lock(&call_function.lock);
+}
+
+void ipi_call_unlock(void)
+{
+	raw_spin_unlock(&call_function.lock);
+}
+
+void ipi_call_lock_irq(void)
+{
+	raw_spin_lock_irq(&call_function.lock);
+}
+
+void ipi_call_unlock_irq(void)
+{
+	raw_spin_unlock_irq(&call_function.lock);
+}
+#endif
 
 /* Setup configured maximum number of CPUs to activate */
 unsigned int setup_max_cpus = NR_CPUS;

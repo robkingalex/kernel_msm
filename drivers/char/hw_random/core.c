@@ -37,10 +37,10 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
+#include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/random.h>
 #include <asm/uaccess.h>
 
 
@@ -55,35 +55,16 @@ static DEFINE_MUTEX(rng_mutex);
 static int data_avail;
 static u8 *rng_buffer;
 
-static inline int rng_get_data(struct hwrng *rng, u8 *buffer, size_t size,
-			       int wait);
-
 static size_t rng_buffer_size(void)
 {
 	return SMP_CACHE_BYTES < 32 ? 32 : SMP_CACHE_BYTES;
 }
 
-static void add_early_randomness(struct hwrng *rng)
-{
-	unsigned char bytes[16];
-	int bytes_read;
-
-	bytes_read = rng_get_data(rng, bytes, sizeof(bytes), 1);
-	if (bytes_read > 0)
-		add_device_randomness(bytes, bytes_read);
-}
-
 static inline int hwrng_init(struct hwrng *rng)
 {
-	if (rng->init) {
-		int ret;
-
-		ret =  rng->init(rng);
-		if (ret)
-			return ret;
-	}
-	add_early_randomness(rng);
-	return 0;
+	if (!rng->init)
+		return 0;
+	return rng->init(rng);
 }
 
 static inline void hwrng_cleanup(struct hwrng *rng)
@@ -321,6 +302,7 @@ err_misc_dereg:
 
 int hwrng_register(struct hwrng *rng)
 {
+	int must_register_misc;
 	int err = -EINVAL;
 	struct hwrng *old_rng, *tmp;
 
@@ -345,6 +327,7 @@ int hwrng_register(struct hwrng *rng)
 			goto out_unlock;
 	}
 
+	must_register_misc = (current_rng == NULL);
 	old_rng = current_rng;
 	if (!old_rng) {
 		err = hwrng_init(rng);
@@ -353,28 +336,18 @@ int hwrng_register(struct hwrng *rng)
 		current_rng = rng;
 	}
 	err = 0;
-	if (!old_rng) {
+	if (must_register_misc) {
 		err = register_miscdev();
 		if (err) {
-			hwrng_cleanup(rng);
-			current_rng = NULL;
+			if (!old_rng) {
+				hwrng_cleanup(rng);
+				current_rng = NULL;
+			}
 			goto out_unlock;
 		}
 	}
 	INIT_LIST_HEAD(&rng->list);
 	list_add_tail(&rng->list, &rng_list);
-
-	if (old_rng && !rng->init) {
-		/*
-		 * Use a new device's input to add some randomness to
-		 * the system.  If this rng device isn't going to be
-		 * used right away, its init function hasn't been
-		 * called yet; so only use the randomness from devices
-		 * that don't need an init callback.
-		 */
-		add_early_randomness(rng);
-	}
-
 out_unlock:
 	mutex_unlock(&rng_mutex);
 out:
@@ -407,15 +380,6 @@ void hwrng_unregister(struct hwrng *rng)
 }
 EXPORT_SYMBOL_GPL(hwrng_unregister);
 
-static void __exit hwrng_exit(void)
-{
-	mutex_lock(&rng_mutex);
-	BUG_ON(current_rng);
-	kfree(rng_buffer);
-	mutex_unlock(&rng_mutex);
-}
-
-module_exit(hwrng_exit);
 
 MODULE_DESCRIPTION("H/W Random Number Generator (RNG) driver");
 MODULE_LICENSE("GPL");

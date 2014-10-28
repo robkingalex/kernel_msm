@@ -44,7 +44,6 @@
 #include <asm/localtimer.h>
 #include <asm/smp_plat.h>
 #include <asm/mach/arch.h>
-#include <asm/virt.h>
 #include <asm/mpu.h>
 
 /*

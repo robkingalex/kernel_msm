@@ -81,8 +81,8 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "384000" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_min_freq
 	echo "384000" > /sys/devices/system/cpu/cpu3/cpufreq/scaling_min_freq
 	echo "1" > /sys/devices/system/cpu/cpufreq/HYPER/io_is_busy
-	echo "95" > /sys/devices/system/cpu/cpufreq/HYPER/up_threshold
-	echo "95" > /sys/devices/system/cpu/cpufreq/HYPER/micro_freq_up_threshold
+	echo "85" > /sys/devices/system/cpu/cpufreq/HYPER/up_threshold
+	echo "85" > /sys/devices/system/cpu/cpufreq/HYPER/micro_freq_up_threshold
 	echo "[defcon] HYPER CPU Governor activated" | tee /dev/kmsg
 
 # Ultra Samepage Merging settings low, medium, full, or quiet can be set.

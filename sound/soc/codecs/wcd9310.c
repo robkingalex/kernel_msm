@@ -5169,8 +5169,7 @@ static const struct snd_soc_dapm_widget tabla_dapm_widgets[] = {
 		0),
 
 	SND_SOC_DAPM_SUPPLY("LDO_H", TABLA_A_LDO_H_MODE_1, 7, 0,
-		tabla_codec_enable_ldo_h, SND_SOC_DAPM_POST_PMU |
-		SND_SOC_DAPM_POST_PMD),
+		tabla_codec_enable_ldo_h, SND_SOC_DAPM_POST_PMU),
 
 	SND_SOC_DAPM_SUPPLY("COMP1_CLK", SND_SOC_NOPM, 0, 0,
 		tabla_config_compander, SND_SOC_DAPM_PRE_PMU |

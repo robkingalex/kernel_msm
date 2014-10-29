@@ -168,7 +168,7 @@ static void event_handler(uint32_t opcode,
 
 		/* assume data size = 0 during flushing */
 		if (in_frame_info[token][0]) {
-			prtd->pcm_irq_pos += prtd->pcm_count;
+			prtd->pcm_irq_pos += in_frame_info[token][0];
 			pr_debug("pcm_irq_pos=%d\n", prtd->pcm_irq_pos);
 			if (atomic_read(&prtd->start))
 				snd_pcm_period_elapsed(substream);
@@ -722,7 +722,6 @@ static int msm_pcm_hw_params(struct snd_pcm_substream *substream,
 	ret = q6asm_audio_client_buf_alloc_contiguous(dir,
 			prtd->audio_client,
 			(params_buffer_bytes(params) / params_periods(params)),
-			params_periods(params));
 			params_periods(params));
 		pr_debug("buff bytes = %d, period size = %d,\
 			period count = %d\n", params_buffer_bytes(params),

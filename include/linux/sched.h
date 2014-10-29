@@ -1180,6 +1180,7 @@ struct task_struct {
 	atomic_t usage;
 	unsigned int flags;	/* per process flags, defined below */
 	unsigned int ptrace;
+	unsigned int yield_count;
 
 #ifdef CONFIG_SMP
 	struct llist_node wake_entry;
@@ -1273,6 +1274,12 @@ struct task_struct {
 	unsigned sched_contributes_to_load:1;
 
 	unsigned long atomic_flags; /* Flags needing atomic access. */
+
+#ifdef CONFIG_GENERIC_HARDIRQS
+	/* IRQ handler threads */
+	unsigned irq_thread:1;
+#endif
+
 
 	pid_t pid;
 	pid_t tgid;
@@ -2010,6 +2017,25 @@ extern unsigned int sysctl_sched_wake_to_idle;
 extern unsigned int sysctl_sched_ravg_window;
 extern unsigned int sysctl_sched_wakeup_load_threshold;
 extern unsigned int sysctl_sched_window_stats_policy;
+
+#ifdef CONFIG_SCHED_DEBUG
+extern unsigned int sysctl_sched_migration_cost;
+extern unsigned int sysctl_sched_nr_migrate;
+extern unsigned int sysctl_sched_time_avg;
+extern unsigned int sysctl_timer_migration;
+extern unsigned int sysctl_sched_shares_window;
+
+int sched_proc_update_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *length,
+		loff_t *ppos);
+#endif
+
+extern unsigned int sysctl_sched_rt_period;
+extern int sysctl_sched_rt_runtime;
+
+int sched_rt_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp,
+		loff_t *ppos);
 
 #ifdef CONFIG_SCHED_AUTOGROUP
 extern void sched_autogroup_create_attach(struct task_struct *p);

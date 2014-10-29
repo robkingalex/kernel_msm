@@ -21,8 +21,6 @@ extern void tick_handover_do_timer(int *cpup);
 extern void tick_shutdown(unsigned int *cpup);
 extern void tick_suspend(void);
 extern void tick_resume(void);
-extern void tick_notify(unsigned long reason, void *dev);
-extern void tick_check_new_device(struct clock_event_device *dev);
 
 extern void clockevents_shutdown(struct clock_event_device *dev);
 
@@ -152,4 +150,3 @@ static inline int tick_device_is_functional(struct clock_event_device *dev)
 
 int __clockevents_update_freq(struct clock_event_device *dev, u32 freq);
 extern void do_timer(unsigned long ticks);
-extern seqlock_t xtime_lock;

@@ -176,7 +176,7 @@ fi
 	echo "0" > /proc/sys/vm/panic_on_oom;
 	echo "0" > /proc/sys/vm/laptop_mode;
 	echo "60" > /proc/sys/vm/swappiness;
-	echo "50" > /proc/sys/vm/vfs_cache_pressure;
+	echo "40" > /proc/sys/vm/vfs_cache_pressure;
 	echo "90" > /proc/sys/vm/dirty_ratio;
 	echo "1" > /proc/sys/vm/overcommit_memory;
 	echo "4" > /proc/sys/vm/min_free_order_shift;

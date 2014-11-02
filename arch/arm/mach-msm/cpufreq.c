@@ -240,14 +240,17 @@ int msm_cpufreq_set_freq_limits(uint32_t cpu, uint32_t min, uint32_t max)
 	else
 		limit->allowed_max = limit->max;
 
+#if 0
 	pr_debug("%s: Limiting cpu %d min = %d, max = %d\n",
 			__func__, cpu,
 			limit->allowed_min, limit->allowed_max);
+#endif
 
 	return 0;
 }
 EXPORT_SYMBOL(msm_cpufreq_set_freq_limits);
 
+/* This function is used in MSM_THERMAL DRIVER */
 int msm_cpufreq_get_index(struct cpufreq_policy *policy, unsigned int freq)
 {
 	int index;

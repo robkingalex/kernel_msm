@@ -1016,6 +1016,8 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
+	&policy_min_freq.attr,
+	&policy_max_freq.attr,
 #ifdef CONFIG_MSM_CPU_VOLTAGE_CONTROL
 	&UV_mV_table.attr,
 #endif
@@ -2582,6 +2584,12 @@ static int __init cpufreq_core_init(void)
 	cpufreq_global_kobject = kobject_create_and_add("cpufreq", &cpu_subsys.dev_root->kobj);
 	BUG_ON(!cpufreq_global_kobject);
 	register_syscore_ops(&cpufreq_syscore_ops);
+	rc = pm_qos_add_notifier(PM_QOS_CPU_FREQ_MIN,
+				 &min_freq_notifier);
+	BUG_ON(rc);
+	rc = pm_qos_add_notifier(PM_QOS_CPU_FREQ_MAX,
+				 &max_freq_notifier);
+	BUG_ON(rc);
 
 #ifdef CONFIG_MULTI_CPU_POLICY_LIMIT
 	rc = sysfs_create_group(cpufreq_global_kobject, &all_cpus_attr_group);

@@ -250,6 +250,17 @@ int tsens_get_temp(struct tsens_device *device, unsigned long *temp)
 }
 EXPORT_SYMBOL(tsens_get_temp);
 
+int tsens_get_max_sensor_num(uint32_t *tsens_num_sensors)
+{
+	if (!tmdev)
+		return -ENODEV;
+
+	*tsens_num_sensors = tmdev->tsens_num_sensor;
+
+	return 0;
+}
+EXPORT_SYMBOL(tsens_get_max_sensor_num);
+
 static int tsens_tz_get_mode(struct thermal_zone_device *thermal,
 			      enum thermal_device_mode *mode)
 {
@@ -262,6 +273,20 @@ static int tsens_tz_get_mode(struct thermal_zone_device *thermal,
 
 	return 0;
 }
+
+static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
+				   char *buf)
+{
+	struct tsens_device dev_temp;
+	unsigned long temp = 0;
+
+	dev_temp.sensor_num = 0;
+
+	tsens_get_temp(&dev_temp, &temp);
+	return snprintf(buf, 4, "%ld\n", temp*10);
+}
+
+static DEVICE_ATTR(curr_temp, S_IRUSR|S_IRGRP, show_temp, NULL);
 
 /* Function to enable the mode.
  * If the main sensor is disabled all the sensors are disable and
@@ -689,6 +714,46 @@ static irqreturn_t tsens_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void tsens8960_sensor_mode_init(void)
+{
+	unsigned int reg_cntl = 0;
+        unsigned int reg = 0, mask = 0, i = 0;
+
+	reg_cntl = readl_relaxed(TSENS_CNTL_ADDR);
+	if (tmdev->hw_type == MSM_8960 || tmdev->hw_type == MDM_9615 ||
+			tmdev->hw_type == APQ_8064) {
+		writel_relaxed(reg_cntl &
+				~((((1 << tmdev->tsens_num_sensor) - 1) >> 1)
+				<< (TSENS_SENSOR0_SHIFT + 1)), TSENS_CNTL_ADDR);
+                tmdev->sensor[TSENS_MAIN_SENSOR].mode = THERMAL_DEVICE_ENABLED;
+
+                for (i = 1; i < tmdev->tsens_num_sensor; i++) {
+                        if (tmdev->sensor[i].mode == THERMAL_DEVICE_ENABLED)
+                                continue;
+
+		        reg = readl_relaxed(TSENS_CNTL_ADDR);
+		        mask = 1 << (i + TSENS_SENSOR0_SHIFT);
+			if ((mask != SENSOR0_EN) && !(reg & SENSOR0_EN)) {
+				pr_info("Main sensor not enabled\n");
+				return;
+			}
+			writel_relaxed(reg | TSENS_SW_RST, TSENS_CNTL_ADDR);
+			if (tmdev->hw_type == MSM_8960 ||
+				tmdev->hw_type == MDM_9615 ||
+				tmdev->hw_type == APQ_8064)
+				reg |= mask | TSENS_8960_SLP_CLK_ENA
+							| TSENS_EN;
+			else
+				reg |= mask | TSENS_8660_SLP_CLK_ENA
+							| TSENS_EN;
+			tmdev->prev_reading_avail = false;
+		        writel_relaxed(reg, TSENS_CNTL_ADDR);
+
+		        tmdev->sensor[i].mode = THERMAL_DEVICE_ENABLED;
+                }
+	}
+}
+
 #ifdef CONFIG_PM
 static int tsens_suspend(struct device *dev)
 {
@@ -914,6 +979,17 @@ static int tsens_calib_sensors8960(void)
 	return 0;
 }
 
+static int tsens_check_version_support(void)
+{
+	int rc = 0;
+
+	if (tmdev->hw_type == MSM_8960)
+		if (SOCINFO_VERSION_MAJOR(socinfo_get_version()) == 1)
+			rc = -ENODEV;
+
+	return rc;
+}
+
 static int tsens_calib_sensors(void)
 {
 	int rc = -ENODEV;
@@ -951,6 +1027,12 @@ int msm_tsens_early_init(struct tsens_platform_data *pdata)
 	tmdev->tsens_num_sensor = pdata->tsens_num_sensor;
 	tmdev->hw_type = pdata->hw_type;
 
+	rc = tsens_check_version_support();
+	if (rc < 0) {
+		kfree(tmdev);
+		tmdev = NULL;
+		return rc;
+	}
 	rc = tsens_calib_sensors();
 	if (rc < 0) {
 		kfree(tmdev);
@@ -993,6 +1075,13 @@ static int __devinit tsens_tm_probe(struct platform_device *pdev)
 			rc = -ENODEV;
 			goto fail;
 		}
+		tmdev->sensor[i].mode = THERMAL_DEVICE_DISABLED;
+	}
+	tsens8960_sensor_mode_init();
+	rc = device_create_file(&pdev->dev, &dev_attr_curr_temp);
+	if (rc < 0) {
+		pr_err("[TSENS] Failed to create file (curr_temp)!\n");
+		goto err_create_file_curr;
 	}
 
 	rc = request_irq(TSENS_UPPER_LOWER_INT, tsens_isr,
@@ -1008,6 +1097,8 @@ static int __devinit tsens_tm_probe(struct platform_device *pdev)
 	pr_debug("%s: OK\n", __func__);
 	mb();
 	return 0;
+err_create_file_curr:
+	device_remove_file(&pdev->dev, &dev_attr_curr_temp);
 fail:
 	tsens_disable_mode();
 	kfree(tmdev);

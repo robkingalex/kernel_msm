@@ -129,7 +129,7 @@ static void __cpuinit asmp_work_fn(struct work_struct *work) {
 	mod_delayed_work(asmp_workq, &asmp_work, delay_jif);
 }
 
-static void asmp_power_suspend(struct early_suspend *h) {
+static void asmp_power_suspend(struct power_suspend *h) {
 	unsigned int cpu;
 
 	/* unplug online cpu cores */

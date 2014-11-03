@@ -17,7 +17,30 @@
 struct msm_thermal_data {
 	uint32_t sensor_id;
 	uint32_t poll_ms;
+	int32_t limit_temp_degC;
+	int32_t temp_hysteresis_degC;
+	uint32_t freq_step;
+	int32_t core_limit_temp_degC;
+	int32_t core_temp_hysteresis_degC;
+	uint32_t core_control_mask;
+#ifdef CONFIG_MAKO_THERMAL
+	uint32_t shutdown_temp;
+	uint32_t allowed_max_high;
+	uint32_t allowed_max_low;
+	uint32_t allowed_max_freq;
+	uint32_t allowed_mid_high;
+	uint32_t allowed_mid_low;
+	uint32_t allowed_mid_freq;
+	uint32_t allowed_low_high;
+	uint32_t allowed_low_low;
+	uint32_t allowed_low_freq;
+#endif
+};
+
 #ifdef CONFIG_INTELLI_THERMAL
+struct msm_thermal_data_intelli {
+	uint32_t sensor_id;
+	uint32_t poll_ms;
 	int32_t limit_temp_degC;
 	int32_t temp_hysteresis_degC;
 	uint32_t freq_step;
@@ -25,12 +48,19 @@ struct msm_thermal_data {
 	int32_t core_limit_temp_degC;
 	int32_t core_temp_hysteresis_degC;
 	uint32_t core_control_mask;
-#else
-	uint32_t limit_temp_degC;
-	uint32_t temp_hysteresis_degC;
-	uint32_t freq_step;
-#endif
 };
+#endif
+
+#ifdef CONFIG_MAKO_THERMAL
+struct msm_thermal_stat {
+    cputime64_t time_low_start;
+    cputime64_t time_mid_start;
+    cputime64_t time_max_start;
+    cputime64_t time_low;
+    cputime64_t time_mid;
+    cputime64_t time_max;
+};
+#endif
 
 #if defined(CONFIG_THERMAL_MONITOR) || defined(CONFIG_INTELLI_THERMAL)
 extern int msm_thermal_init(struct msm_thermal_data *pdata);

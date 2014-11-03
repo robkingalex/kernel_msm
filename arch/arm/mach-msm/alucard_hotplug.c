@@ -327,7 +327,7 @@ static void __ref hotplug_work_fn(struct work_struct *work)
 #endif
 		delay -= jiffies % delay;
 	}
-
+*/
 	queue_delayed_work_on(0, alucardhp_wq, &alucard_hotplug_work,
 							  delay);
 }

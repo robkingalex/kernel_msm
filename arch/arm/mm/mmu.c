@@ -1393,29 +1393,8 @@ static void __init map_lowmem(void)
 	map.length = end - start;
 	map.type = MT_MEMORY;
 
-		start = reg->base;
-		end = start + reg->size;
-
-		if (end > arm_lowmem_limit)
-			end = arm_lowmem_limit;
-		if (start >= end)
-			break;
-
-		pfn = __phys_to_pfn(start);
-		vaddr = __phys_to_virt(start);
-		length = end - start;
-		type = MT_MEMORY;
-
-		vm->addr = (void *)(vaddr & PAGE_MASK);
-		vm->size = PAGE_ALIGN(length + (vaddr & ~PAGE_MASK));
-		vm->phys_addr = __pfn_to_phys(pfn);
-		vm->flags = VM_LOWMEM | VM_ARM_STATIC_MAPPING;
-		vm->flags |= VM_ARM_MTYPE(type);
-		vm->caller = map_lowmem;
-		vm_area_add_early(vm);
-		mark_vmalloc_reserved_area(vm->addr, vm->size);
-		vm++;
-	}
+	create_mapping(&map, true);
+#endif
 }
 #endif
 /*

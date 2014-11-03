@@ -1396,7 +1396,7 @@ static void __init map_lowmem(void)
 	create_mapping(&map, true);
 #endif
 }
-#endif
+
 /*
  * paging_init() sets up the page tables, initialises the zone memory
  * maps, and sets up the zero page, bad page and bad page tables.

@@ -616,6 +616,7 @@ static void do_alucard_timer(struct work_struct *work)
 		alucard_check_cpu(alucard_cpuinfo);
 
 	queue_delayed_work_on(cpu, alucard_wq, &alucard_cpuinfo->work, delay);
+
 	mutex_unlock(&alucard_cpuinfo->timer_mutex);
 }
 

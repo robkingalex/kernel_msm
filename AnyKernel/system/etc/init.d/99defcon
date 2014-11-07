@@ -5,7 +5,6 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 # Disable mpdecision & thermald & logcat
 	stop thermald
 	stop mpdecision
-	stop logd
 	echo 1 > /sys/module/msm_thermal/parameters/enabled
 	echo "[defcon] thermald & mpdecision disabled" | tee /dev/kmsg
 	echo "[defcon] Intelli-Thermal Enabled!" | tee /dev/kmsg
@@ -80,10 +79,10 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "384000" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq
 	echo "384000" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_min_freq
 	echo "384000" > /sys/devices/system/cpu/cpu3/cpufreq/scaling_min_freq
-	echo "1" > /sys/devices/system/cpu/cpufreq/HYPER/io_is_busy
-	echo "85" > /sys/devices/system/cpu/cpufreq/HYPER/up_threshold
-	echo "85" > /sys/devices/system/cpu/cpufreq/HYPER/micro_freq_up_threshold
-	echo "[defcon] HYPER CPU Governor activated" | tee /dev/kmsg
+	#echo "1" > /sys/devices/system/cpu/cpufreq/HYPER/io_is_busy
+	#echo "85" > /sys/devices/system/cpu/cpufreq/HYPER/up_threshold
+	#echo "85" > /sys/devices/system/cpu/cpufreq/HYPER/micro_freq_up_threshold
+	#echo "[defcon] HYPER CPU Governor activated" | tee /dev/kmsg
 
 # Ultra Samepage Merging settings low, medium, full, or quiet can be set.
 	echo "medium" > /sys/kernel/mm/uksm/cpu_governor
@@ -116,13 +115,6 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "[defcon] IOSched set: fiops" | tee /dev/kmsg
 	echo "[defcon] IOSched readahead set to: 2048" | tee /dev/kmsg
 	
-# Sweep2Dim default
-	echo "0" > /sys/android_touch/sweep2wake
-	echo "1" > /sys/android_touch/sweep2dim
-	echo "73" > /sys/module/sweep2wake/parameters/down_kcal
-	echo "73" > /sys/module/sweep2wake/parameters/up_kcal
-	echo "[defcon] sweep2dim enabled!" | tee /dev/kmsg
-
 # Set RGB KCAL
 if [ -e /sys/devices/platform/kcal_ctrl.0/kcal ]; then
 	sd_r=255

@@ -35,13 +35,13 @@
 #define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(10)
 #define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(3)
 
-#define DEF_FREQUENCY_UP_THRESHOLD		(75)
-#define MICRO_FREQUENCY_UP_THRESHOLD		(80)
+#define DEF_FREQUENCY_UP_THRESHOLD		(70)
+#define MICRO_FREQUENCY_UP_THRESHOLD		(95)
 
-#define DEF_MIDDLE_GRID_STEP			(10)
-#define DEF_HIGH_GRID_STEP			(15)
-#define DEF_MIDDLE_GRID_LOAD			(30)
-#define DEF_HIGH_GRID_LOAD			(40)
+#define DEF_MIDDLE_GRID_STEP			(14)
+#define DEF_HIGH_GRID_STEP			(20)
+#define DEF_MIDDLE_GRID_LOAD			(65)
+#define DEF_HIGH_GRID_LOAD			(89)
 
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define DEF_SAMPLING_RATE			(50000)
@@ -336,7 +336,7 @@ static ssize_t store_sync_freq(struct kobject *a, struct attribute *b,
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
-	if (input <= 810000)
+	if (input <= 960000)
 		return count;
 	dbs_tuners_ins.sync_freq = input;
 	return count;
@@ -385,7 +385,7 @@ static ssize_t store_optimal_freq(struct kobject *a, struct attribute *b,
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
-	if (input <= 810000)
+	if (input <= 960000)
 		return count;
 	dbs_tuners_ins.optimal_freq = input;
 	return count;
@@ -442,7 +442,7 @@ static ssize_t store_optimal_max_freq(struct kobject *a, struct attribute *b,
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
-	if (input <= 810000)
+	if (input <= 960000)
 		return count;
 	dbs_tuners_ins.optimal_max_freq = input;
 
@@ -1004,7 +1004,7 @@ static void do_dbs_timer(struct work_struct *work)
 			dbs_info->freq_lo, CPUFREQ_RELATION_H);
 		delay = dbs_info->freq_lo_jiffies;
 	}
-	mod_delayed_work_on(cpu, dbs_wq, &dbs_info->work, delay);
+	queue_delayed_work_on(cpu, dbs_wq, &dbs_info->work, delay);
 	mutex_unlock(&dbs_info->timer_mutex);
 }
 
@@ -1018,7 +1018,7 @@ static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 
 	dbs_info->sample_type = DBS_NORMAL_SAMPLE;
 	INIT_DEFERRABLE_WORK(&dbs_info->work, do_dbs_timer);
-	mod_delayed_work_on(dbs_info->cpu, dbs_wq, &dbs_info->work, delay);
+	queue_delayed_work_on(dbs_info->cpu, dbs_wq, &dbs_info->work, delay);
 	dbs_info->activated = true;
 }
 
@@ -1231,4 +1231,3 @@ fs_initcall(cpufreq_gov_dbs_init);
 module_init(cpufreq_gov_dbs_init);
 #endif
 module_exit(cpufreq_gov_dbs_exit);
-

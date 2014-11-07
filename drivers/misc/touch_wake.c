@@ -20,7 +20,6 @@
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
-#include <linux/leds.h>
 
 #define TIME_LONGPRESS		(500)
 #define POWERPRESS_DELAY	(40)
@@ -44,9 +43,6 @@ static void press_powerkey(struct work_struct *ws);
 static DECLARE_DELAYED_WORK(presspower_work, press_powerkey);
 static DEFINE_MUTEX(lock);
 
-static struct led_trigger touchwake_led_trigger = {
-	.name           = "touchwake",
-};
 
 static void touchwake_disable_touch(void)
 {
@@ -79,7 +75,6 @@ static void touchwake_early_suspend(struct power_suspend *h)
 
 	if (timed_out) {
 		wake_lock(&touchwake_wake_lock);
-		led_trigger_event(&touchwake_led_trigger, LED_FULL);
 		schedule_delayed_work(&touchoff_work,
 					msecs_to_jiffies(touchoff_delay));
 	} else
@@ -102,7 +97,6 @@ static void touchwake_late_resume(struct power_suspend *h)
 	if (touch_disabled)
 		touchwake_enable_touch();
 
-	led_trigger_event(&touchwake_led_trigger, LED_OFF);
 	timed_out = true;
 
 out:
@@ -119,7 +113,6 @@ static void touchwake_touchoff(struct work_struct *touchoff_work)
 {
 	touchwake_disable_touch();
 	wake_unlock(&touchwake_wake_lock);
-	led_trigger_event(&touchwake_led_trigger, LED_OFF);
 
 	return;
 }
@@ -330,14 +323,11 @@ static int __init touchwake_control_init(void)
 
 	powerkey_flag = 0;
 
-	ret = led_trigger_register(&touchwake_led_trigger);
-
 	return 0;
 }
 
 static void __exit touchwake_control_exit(void)
 {
-	led_trigger_unregister(&touchwake_led_trigger);
 }
 
 device_initcall(touchwake_control_init);

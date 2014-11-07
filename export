@@ -12,8 +12,8 @@ else
 	export ENABLE_GRAPHITE=true
 fi
 kernel="defcon"
-version="92u-a5-unleashed"
-rom="CM11"
+version="92u-a7-unleashed"
+rom="AOSP"
 variant="mako"
 ramdisk=ramdisk
 #ramdisk=/home/defcon/Desktop/newboot/ramdisk

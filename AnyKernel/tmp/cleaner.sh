@@ -1,9 +1,12 @@
 #!/sbin/sh
 
-# delete mpdecision & thermald because it is no longer needed
-rm -rf /system/bin/thermald
-rm -rf /system/bin/mpdecision
-rm -rf /system/lib/hw/power.msm8960.so
+# move mpdecision & thermald because it is no longer needed
+mv /system/lib/hw/power.msm8960.so /system/lib/hw/power.msm8960.so-bak;
+mv /system/lib/hw/power.mako.so /system/lib/hw/power.mako.so-bak;
+mv /system/bin/thermal-engine-hh /system/bin/thermal-engine-hh-bak;
+mv /system/bin/mpdecision /system/bin/mpdecision-bak;
+mv /system/bin/thermald /system/bin/thermald-bak;
+
 # clean init.d scripts
 INITD_DIR=/system/etc/init.d
 # Trinity

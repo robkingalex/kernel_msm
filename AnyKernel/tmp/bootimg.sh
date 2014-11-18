@@ -25,7 +25,7 @@ cd /
 #this is no longer needed as the ramdisk now inserts our modules, but we will
 #keep this here for user comfort, since having run-parts init.d support is a
 #good idea anyway.
-#found=$(find /tmp/ramdisk/init.rc -type f | xargs grep -oh "run-parts /system/etc/init.d");
+found=$(find /tmp/ramdisk/init.rc -type f | xargs grep -oh "run-parts /system/etc/init.d");
 if [ "$found" != 'run-parts /system/etc/init.d' ]; then
         #find busybox in /system
         bblocation=$(find /system/ -name 'busybox')

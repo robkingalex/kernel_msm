@@ -42,7 +42,6 @@ set_perm_recursive(0, 0, 0755, 0755, "/data/UKM");
 set_perm(0, 0, 0755, "/system/etc/init.d/UKM");
 set_perm(0, 0, 0755, "/system/xbin/uci");
 set_perm_recursive(0, 0, 0755, 0755, "/system/etc/init.d");
-set_metadata("/system/etc/audio_policy.conf", "uid", 0, "gid", 0, "mode", 0755, "capabilities", 0x0, "selabel", "u:object_r:system_file:s0");
 run_program("/tmp/busybox", "unmount", "/system");
 ui_print("****************************************");
 ui_print("*          Install Complete!           *");

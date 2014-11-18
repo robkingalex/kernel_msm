@@ -10,10 +10,10 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "[defcon] Intelli-Thermal Enabled!" | tee /dev/kmsg
 
 # Set default hotplug here:
+	echo 1 > /sys/kernel/alucard_hotplug/hotplug_enable
 	echo 0 > /sys/module/autosmp/parameters/enabled
-	echo 0 > /sys/module/dyn_hotplug/parameters/enabled
 	echo 0 > /sys/module/msm_hotplug/enabled
-	echo 1 > /sys/kernel/intelli_plug/intelli_plug_active
+	echo 0 > /sys/kernel/intelli_plug/intelli_plug_active
 	echo "[defcon] hotplug options set!" | tee /dev/kmsg
 
 # CPU Boost Driver settings:

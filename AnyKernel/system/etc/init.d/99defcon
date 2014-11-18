@@ -2,6 +2,27 @@
 bb=busybox
 echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 
+# MSM Limiter disabled by default, 384000/1512000 already coded in driver as default
+#echo 0 > /sys/kernel/msm_limiter/limiter_enabled
+#echo 384000 > /sys/kernel/msm_limiter/suspend_min_freq_0
+#echo 384000 > /sys/kernel/msm_limiter/suspend_min_freq_1
+#echo 384000 > /sys/kernel/msm_limiter/suspend_min_freq_2
+#echo 384000 > /sys/kernel/msm_limiter/suspend_min_freq_3
+#echo 810000 > /sys/kernel/msm_limiter/suspend_max_freq
+echo HYPER > /sys/kernel/msm_limiter/scaling_governor_0
+echo HYPER > /sys/kernel/msm_limiter/scaling_governor_1
+echo HYPER > /sys/kernel/msm_limiter/scaling_governor_2
+echo HYPER > /sys/kernel/msm_limiter/scaling_governor_3
+#echo 1512000 > /sys/kernel/msm_limiter/resume_max_freq_0
+#echo 1512000 > /sys/kernel/msm_limiter/resume_max_freq_1
+#echo 1512000 > /sys/kernel/msm_limiter/resume_max_freq_2
+#echo 1512000 > /sys/kernel/msm_limiter/resume_max_freq_3
+# Amount of time in seconds to suspend after screen off
+#echo 0 > /sys/kernel/msm_limiter/suspend_defer_time
+# Set to 1 for debug prints
+#echo 0 > /sys/module/msm_limiter/parameters/debug_mask
+
+
 # Power efficient workqueue
 	echo 0 > /sys/module/workqueue/parameters/power_efficient
 
@@ -20,7 +41,7 @@ echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 	echo "[defcon] hotplug options set!" | tee /dev/kmsg
 
 # CPU Boost Driver settings:
-	echo "500" > /sys/module/cpu_boost/parameters/input_boost_ms
+	#echo "500" > /sys/module/cpu_boost/parameters/input_boost_ms
 	echo "30" > /sys/module/cpu_boost/parameters/boost_ms
 	echo "1134000" > /sys/module/cpu_boost/parameters/input_boost_freq
 	echo "[defcon] input boost enabled!" | tee /dev/kmsg

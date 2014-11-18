@@ -38,8 +38,6 @@ function cleanme {
 }
 
 rm -rf out
-mkdir out
-mkdir out/tmp
 echo "Checking for build..."
 if [ -f ozip/boot.img ]; then
 	read -p "Previous build found, clean working directory..(y/n)? : " cchoice
@@ -120,7 +118,7 @@ fi
 
 #echo "Making ramdisk..."
 #if [ -d $ramdisk ]; then
-	/media/Extra/porting/buildtools/mkbootfs $ramdisk | /media/Extra/porting/buildtools/lz4demo -c stdin out/ramdisk.lz4
+	#/media/Extra/porting/buildtools/mkbootfs $ramdisk | /media/Extra/porting/buildtools/lz4demo -c stdin out/ramdisk.lz4
 #else
 #	echo "No ramdisk found..."
 #	exit 0;

@@ -291,4 +291,9 @@ config ASYNC_FSYNC
 	bool "asynchronous fsync"
 	default y
 
+config ASYNC_FSYNC
+	bool
+	string "asynchronous fsync"
+	default y
+
 endmenu

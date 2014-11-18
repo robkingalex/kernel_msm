@@ -2,6 +2,9 @@
 bb=busybox
 echo "[defcon] Welcome to Ultimate Kernel Series" | tee /dev/kmsg
 
+# Power efficient workqueue
+	echo 0 > /sys/module/workqueue/parameters/power_efficient
+
 # Disable mpdecision & thermald & logcat
 	stop thermald
 	stop mpdecision

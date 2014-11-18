@@ -1671,8 +1671,6 @@ cat << CTAG
 					}},'
 				fi;
 			fi`
-			
-			fi`
 			`if [ -d "/sys/module/autosmp/parameters" ]; then
 				if [ -f "/sys/module/autosmp/parameters/enabled" ]; then
 				AUTOSMP=\`bool /sys/module/autosmp/parameters/enabled\`;

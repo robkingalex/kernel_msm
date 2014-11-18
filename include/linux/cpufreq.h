@@ -21,11 +21,8 @@
 #include <linux/workqueue.h>
 #include <linux/cpumask.h>
 #include <asm/div64.h>
-#include <linux/kernel_stat.h>
 
 #define CPUFREQ_NAME_LEN 16
-/* Print length for names. Extra 1 space for accomodating '\n' in prints */
-#define CPUFREQ_NAME_PLEN (CPUFREQ_NAME_LEN + 1)
 
 
 /*********************************************************************
@@ -39,8 +36,7 @@
 int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list);
 int cpufreq_unregister_notifier(struct notifier_block *nb, unsigned int list);
 extern void disable_cpufreq(void);
-u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
-extern unsigned int cpufreq_quick_get_util(unsigned int cpu);
+extern u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
 #else		/* CONFIG_CPU_FREQ */
 static inline int cpufreq_register_notifier(struct notifier_block *nb,
 						unsigned int list)
@@ -130,6 +126,11 @@ struct cpufreq_policy {
 #define CPUFREQ_SHARED_TYPE_ALL	 (2) /* All dependent CPUs should set freq */
 #define CPUFREQ_SHARED_TYPE_ANY	 (3) /* Freq can be set from any dependent CPU*/
 
+static inline bool policy_is_shared(struct cpufreq_policy *policy)
+{
+	return cpumask_weight(policy->cpus) > 1;
+}
+
 /******************** cpufreq transition notifiers *******************/
 
 #define CPUFREQ_PRECHANGE	(0)
@@ -187,6 +188,10 @@ struct cpufreq_governor {
 					 char *buf);
 	int	(*store_setspeed)	(struct cpufreq_policy *policy,
 					 unsigned int freq);
+	ssize_t	(*show_dvfs_test)	(struct cpufreq_policy *policy,
+					 char *buf);
+	int 	(*start_dvfs_test)	(struct cpufreq_policy *policy,
+					 unsigned int enable);
 	unsigned int max_transition_latency; /* HW must be able to switch to
 			next freq faster than this value in nano secs or we
 			will fallback to performance governor */
@@ -336,8 +341,6 @@ __ATTR(_name, 0644, show_##_name, store_##_name)
  *********************************************************************/
 int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu);
 int cpufreq_update_policy(unsigned int cpu);
-bool have_governor_per_policy(void);
-int cpufreq_set_gov(char *target_gov, unsigned int cpu);
 
 #ifdef CONFIG_CPU_FREQ
 /* query the current CPU frequency (in kHz). If zero, cpufreq couldn't detect it */
@@ -483,6 +486,4 @@ void cpufreq_frequency_table_get_attr(struct cpufreq_frequency_table *table,
 				      unsigned int cpu);
 
 void cpufreq_frequency_table_put_attr(unsigned int cpu);
-
-
 #endif /* _LINUX_CPUFREQ_H */

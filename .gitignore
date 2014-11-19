@@ -47,7 +47,7 @@ modules.builtin
 /Module.symvers
 /zImage
 /ramdisk.lz4
-
+/Anykernel/kernel/zImage
 #
 # Debian directory (make deb-pkg)
 #

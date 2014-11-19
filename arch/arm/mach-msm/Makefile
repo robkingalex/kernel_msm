@@ -45,7 +45,7 @@ ifdef CONFIG_ARCH_MSM8625
 else
 	obj-$(CONFIG_SMP) += platsmp.o
 endif
-obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o dyn_hotplug.o
+obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o
 
 obj-$(CONFIG_MSM_AVS_HW) += avs.o
 obj-$(CONFIG_CPU_V6) += idle-v6.o
@@ -392,3 +392,5 @@ obj-$(CONFIG_FORCE_FAST_CHARGE) += fastchg.o
 obj-$(CONFIG_WALL_CLK) += wallclk.o
 obj-$(CONFIG_WALL_CLK_SYSFS) += wallclk_sysfs.o
 obj-$(CONFIG_MSM_SLEEPER) += msm-sleeper.o
+obj-$(CONFIG_ALUCARD_HOTPLUG) += alucard_hotplug.o
+obj-$(CONFIG_MSM_LIMITER) += msm_limiter.o
